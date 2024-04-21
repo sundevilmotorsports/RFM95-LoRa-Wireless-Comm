@@ -20,11 +20,14 @@ GND ----> GND
 
 2 ---> RST
 
+## LoRa Documentation
+[RadioHead](https://www.airspayce.com/mikem/arduino/RadioHead/classRH__RF95.html#ab9605810c11c025758ea91b2813666e3)
+
 
 ## Receiver Spec Sheet
-![Spec Sheet](https://github.com/sundevilmotorsports/RFM95-LoRa-Wireless-Comm/blob/main/Spec_Sheet/Receiver/Arduino_Leonardo_pinOUT.png)
-![Spec Sheet](https://github.com/sundevilmotorsports/RFM95-LoRa-Wireless-Comm/blob/main/Spec_Sheet/Receiver/Receiver_LoRa.jpg)
-![Spec Sheet](https://github.com/sundevilmotorsports/RFM95-LoRa-Wireless-Comm/blob/main/Spec_Sheet/Receiver/Leonardo.jpg)
+![Pinout](https://github.com/sundevilmotorsports/RFM95-LoRa-Wireless-Comm/blob/main/Spec_Sheet/Receiver/Arduino_Leonardo_pinOUT.png)
+![LoRa](https://github.com/sundevilmotorsports/RFM95-LoRa-Wireless-Comm/blob/main/Spec_Sheet/Receiver/Receiver_LoRa.jpg)
+![Leonardo](https://github.com/sundevilmotorsports/RFM95-LoRa-Wireless-Comm/blob/main/Spec_Sheet/Receiver/Leonardo.jpg)
 ## Pinout for Teensy 4.1
 Teansy ----> LoRa
 
@@ -41,5 +44,5 @@ GND ----> GND
 12 ----> MISO
 
 ## Sender Spec Sheet
-![Spec Sheet](https://github.com/sundevilmotorsports/RFM95-LoRa-Wireless-Comm/blob/main/Spec_Sheet/Sender/Sender%20LoRa.jpg)
-![Spec Sheet](https://github.com/sundevilmotorsports/RFM95-LoRa-Wireless-Comm/blob/main/Spec_Sheet/Sender/Teensy%204.1.jpg)
+![LoRa](https://github.com/sundevilmotorsports/RFM95-LoRa-Wireless-Comm/blob/main/Spec_Sheet/Sender/Sender%20LoRa.jpg)
+![Teensy](https://github.com/sundevilmotorsports/RFM95-LoRa-Wireless-Comm/blob/main/Spec_Sheet/Sender/Teensy%204.1.jpg)
