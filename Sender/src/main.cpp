@@ -15,10 +15,11 @@ RH_RF95 driver(CS, G0);
 FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> Can;
 
 //Declare packets
-uint8_t pkt[RH_RF95_MAX_MESSAGE_LEN];
-uint8_t imu_pkt[RH_RF95_MAX_MESSAGE_LEN];
-uint8_t wheel_pkt[RH_RF95_MAX_MESSAGE_LEN];
-uint8_t daq_pkt[RH_RF95_MAX_MESSAGE_LEN];
+//Max length 251 (RH_RF95_MAX_MESSAGE_LEN), longer the message the longer send time
+uint8_t pkt[32];
+uint8_t imu_pkt[32];
+uint8_t wheel_pkt[32];
+uint8_t daq_pkt[32];
 
 // IMU VARIABLES
 int xAccel = -1;
@@ -74,6 +75,13 @@ void setup() {
     Serial.println("init failed"); 
   else
     Serial.println("init succeded");
+
+  imu_pkt[0] = 1;
+  wheel_pkt[0] = 2;
+  daq_pkt[0] = 3;
+  pkt[0] = 5;
+
+
   driver.setFrequency(915.0); // Median of Hz range
   driver.setTxPower(RH_RF95_MAX_POWER, false); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
   driver.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048); //Bandwidth of 125, Cognitive Radio 4/5, Spreading Factor 2048
@@ -308,7 +316,8 @@ void testPacket(){
   pkt[14] = intTest & 0xFF;
 
   if(Serial){
-    Serial.println("Created test data: " + String(timeTest) + "ms"
+    Serial.println("Created test data: \nlong,\t" 
+                  + String(timeTest) + "ms"
                   + "\nbool,\t" + String(boolTest)
                   + "\n8int,\t" + String(int8Test)
                   + "\nshort,\t" + String(shortTest)

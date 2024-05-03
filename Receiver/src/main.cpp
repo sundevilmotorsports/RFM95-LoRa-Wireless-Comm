@@ -15,7 +15,7 @@ bool read;
 void imuRead();
 void wheelRead();
 void dataLogRead();
-void imitateRadio();
+void testRead();
 
 //interval for checking if sender is available in milliseconds
 const unsigned long INTERVAL1 = 500;
@@ -55,9 +55,9 @@ void loop() {
           dataLogRead();
           break;
         case 5:
-          Serial.println("Test data received");
+          testRead();
         default:
-          Serial.println("received empty packet");
+          //Serial.println("received empty packet");
           break;
       }
       driver.waitAvailableTimeout(INTERVAL2);
@@ -139,3 +139,13 @@ void dataLogRead() {
     String(batteryVoltage)     + "," + String(daqCurrentDraw)    + "\n");
 }
 
+void testRead(){
+  unsigned long longTest = (unsigned long) pkt[1] << 24 | (unsigned long) pkt[2] << 16 | (unsigned long) pkt[3] << 8 | (unsigned long) pkt[4];
+  bool boolTest = pkt[5];
+  float int8Test = pkt[6];
+  float shortTest = pkt[7] << 8 | pkt[8];
+  float int16Test = pkt[9] << 8 | pkt[10];
+  float intTest = pkt[11] << 24 | pkt[12] << 16 | pkt[13] << 8 | pkt[14];
+
+  Serial.println("5," + String(longTest) + "," + String(boolTest) + "," + String(int8Test) + "," + String(shortTest)  + "," + String(int16Test) + "," + String(intTest));
+}
