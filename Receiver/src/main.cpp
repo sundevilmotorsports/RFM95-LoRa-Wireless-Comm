@@ -7,33 +7,40 @@
 
 //Declaring radio and buffer vars
 RH_RF95 driver(CS, G0);
-uint8_t pkt[32];
-uint8_t *length;
+uint8_t pkt[RH_RF95_MAX_MESSAGE_LEN];
+uint8_t length = sizeof(pkt);
 bool read;
 
 //Declare functions
 void imuRead();
 void wheelRead();
 void dataLogRead();
-void imitateRadio();
+void testRead();
 
+//interval for checking if sender is available in milliseconds
+const unsigned long INTERVAL1 = 500;
+
+//interval for waiting for new packet before searching for connection
+const unsigned long INTERVAL2 = 3000;
+
+//Baud rate, don't set too high or risk data loss
+unsigned long BAUD = 9600;
 
 void setup(){
-  Serial.begin(9600); //Set Baud rate, don't set too high or risk data loss
-  while (!Serial) ; // Wait for serial port to be available
+  Serial.begin(BAUD);
   if (!driver.init())
     Serial.println("init failed"); 
   else
     Serial.println("init succeded");
   driver.setFrequency(915.0); // Median of Hz range
-  driver.setTxPower(15, true); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
+  driver.setTxPower(23, false); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
   driver.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048); //Bandwidth of 125, Cognitive Radio 4/5, Spreading Factor 2048
   driver.setModeRx();
 }
 
 void loop() {
   if(driver.available()){
-    read = driver.recv(pkt, length);
+    read = driver.recv(pkt, &length);
     uint8_t ID = pkt[0];
     //If we were able to read packet choose decode function using ID
     if(read){
@@ -48,17 +55,18 @@ void loop() {
           dataLogRead();
           break;
         case 5:
-          Serial.println("Test data received");
+          testRead();
         default:
-          Serial.println("received empty packet");
+          //Serial.println("received empty packet");
           break;
       }
+      driver.waitAvailableTimeout(INTERVAL2);
     } else {
       Serial.println("Unable to read packet");
     }
   } else {
     Serial.println("Sender not available :(");
-    delay(500);
+    delay(INTERVAL1);
   }
 }
 
@@ -75,7 +83,7 @@ void imuRead(){
   float yGyro = (pkt[21] << 24) | (pkt[22] << 16) | (pkt[23] << 8) | pkt[24];
   float zGyro = (pkt[25] << 24) | (pkt[26] << 16) | (pkt[27] << 8) | pkt[28];
 
-  Serial.print("1" + String(timestamp) + ","  + 
+  Serial.print("1," + String(timestamp) + ","  + 
     String(xAccel) + "," + String(yAccel) + "," + String(zAccel) + "," + 
     String(xGyro)  + "," + String(yGyro)  + "," + String(zGyro)  + "\n");
 }
@@ -101,7 +109,7 @@ void wheelRead() {
   float br_brakeTemp = (pkt[25] << 8) | pkt[26];
   float br_ambTemp = (pkt[27] << 8) | pkt[28];
 
-  Serial.print("2" + String(timestamp) + ","  + 
+  Serial.print("2," + String(timestamp) + ","  + 
     String(fl_speed) + "," + String(fl_brakeTemp) + "," + String(fl_ambTemp) + "," + 
     String(fr_speed) + "," + String(fr_brakeTemp) + "," + String(fr_ambTemp) + "," + 
     String(bl_speed) + "," + String(bl_brakeTemp) + "," + String(bl_ambTemp) + "," +
@@ -125,9 +133,19 @@ void dataLogRead() {
   
   float batteryVoltage = (pkt[22] << 24) | (pkt[23] << 16) | (pkt[24] << 8) | pkt[25];
   float daqCurrentDraw = (pkt[26] << 24) | (pkt[27] << 16) | (pkt[28] << 8) | pkt[29];
-  Serial.print("3" + String(timestamp) + ","  + String(drsToggle) + "," + String(steeringAngle) + "," + String(throttleInput) + "," + 
+  Serial.print("3," + String(timestamp) + ","  + String(drsToggle) + "," + String(steeringAngle) + "," + String(throttleInput) + "," + 
     String(frontBrakePressure) + "," + String(rearBrakePressure) + "," + 
     String(gpsLatitude)        + "," + String(gpsLongitude)      + "," + 
     String(batteryVoltage)     + "," + String(daqCurrentDraw)    + "\n");
 }
 
+void testRead(){
+  unsigned long longTest = (unsigned long) pkt[1] << 24 | (unsigned long) pkt[2] << 16 | (unsigned long) pkt[3] << 8 | (unsigned long) pkt[4];
+  bool boolTest = pkt[5];
+  float int8Test = pkt[6];
+  float shortTest = pkt[7] << 8 | pkt[8];
+  float int16Test = pkt[9] << 8 | pkt[10];
+  float intTest = pkt[11] << 24 | pkt[12] << 16 | pkt[13] << 8 | pkt[14];
+
+  Serial.println("5," + String(longTest) + "," + String(boolTest) + "," + String(int8Test) + "," + String(shortTest)  + "," + String(int16Test) + "," + String(intTest));
+}
