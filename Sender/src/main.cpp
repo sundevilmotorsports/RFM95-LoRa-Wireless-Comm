@@ -8,16 +8,17 @@
 #define CS 10
 #define G0 2
 #define LED 13
+#define TESTING false
 
 //Declaring radio and can
 RH_RF95 driver(CS, G0);
 FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> Can;
 
 //Declare packets
-uint8_t pkt[32];
-uint8_t imu_pkt[32];
-uint8_t wheel_pkt[32];
-uint8_t daq_pkt[32];
+uint8_t pkt[RH_RF95_MAX_MESSAGE_LEN];
+uint8_t imu_pkt[RH_RF95_MAX_MESSAGE_LEN];
+uint8_t wheel_pkt[RH_RF95_MAX_MESSAGE_LEN];
+uint8_t daq_pkt[RH_RF95_MAX_MESSAGE_LEN];
 
 // IMU VARIABLES
 int xAccel = -1;
@@ -54,33 +55,28 @@ int gps_long = -1;
 int batteryVoltage = -1;
 int daqCurrentDraw = -1;
 
-// trying to read can for 50 milliseconds then send packet
-const unsigned long interval = 50;
 
 // Declare functions
 void dataLogSniff(const CAN_message_t &msg, unsigned long currentMillis);
 void imuSniff(const CAN_message_t &msg, unsigned long currentMillis);
 void wheelSniff(const CAN_message_t &msg, unsigned long currentMillis);
 void canSniff(const CAN_message_t &msg);
-void sendData(uint8_t pkt[32]);
+void sendData(uint8_t pkt[RH_RF95_MAX_MESSAGE_LEN]);
+
+//Baud rate, don't set too high or risk data loss
+unsigned long BAUD = 9600;
 
 void setup() {
   pinMode(LED, OUTPUT);
   
-  Serial.begin(9600); //Set Baud rate, don't set too high or risk data loss
-  while (!Serial) ; // Wait for serial port to be available
+  Serial.begin(BAUD); //Set Baud rate, don't set too high or risk data loss - might be unused for teensy needs testing
   if (!driver.init())
     Serial.println("init failed"); 
   else
     Serial.println("init succeded");
   driver.setFrequency(915.0); // Median of Hz range
-  driver.setTxPower(15, true); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
+  driver.setTxPower(RH_RF95_MAX_POWER, false); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
   driver.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048); //Bandwidth of 125, Cognitive Radio 4/5, Spreading Factor 2048
-  driver.setModeRx();
-
-  imu_pkt[0] = 1;
-  wheel_pkt[0] = 2;
-  daq_pkt[0] = 3;
 
   Can.begin();
   Can.setBaudRate(1000000);
@@ -144,26 +140,16 @@ void dataLogSniff(const CAN_message_t &msg, unsigned long currentMillis)
     daq_pkt[29] = batteryVoltage & 0xFF;
     break;
   }
-  Serial.println("Received Data Log:");
-  Serial.println(msg.id, HEX);
-
-  Serial.print(",");
-  Serial.print(currentMillis);
-  Serial.print(",");
-  Serial.print(DRS);
-  Serial.print(",");
-  Serial.print(steeringAngle);
-  Serial.print(",");
-  Serial.print(throttleInput);
-  Serial.print(",");
-  Serial.print(gps_lat);
-  Serial.print(",");
-  Serial.print(gps_long);
-  Serial.print(",");
-  Serial.print(batteryVoltage);
-  Serial.print(",");
-  Serial.print(daqCurrentDraw);
-  Serial.print("\n");
+  //Only print if serial monitor is open
+  if(Serial && TESTING){
+    Serial.println("Received Data Log: " + String(msg.id) + ", " + String(currentMillis) + "ms"
+                    + "\nDRS, " + String(DRS)
+                    + "\nSteering Angle, " + String(steeringAngle) + "°"
+                    + "\nThrottle, " + String(throttleInput) + "%"
+                    + "\nBrake Pressure, " + String(frontBrakePressure) + "BAR, " + String(rearBrakePressure) + "BAR"
+                    + "\ngps, " + String(gps_lat) + "Decimal Degrees, " + String(gps_long) + "Decimal Degrees"
+                    + "\nBattery, " + String(batteryVoltage) + "mV, " + String(daqCurrentDraw) + "mA");
+  }
 }
 
 
@@ -216,22 +202,12 @@ void imuSniff(const CAN_message_t &msg, unsigned long currentMillis)
     imu_pkt[28] = zGyro & 0xFF;
     break;
   }
-  Serial.println(msg.id, HEX);
-  Serial.print(",");
-  Serial.print(currentMillis);
-  Serial.print(",");
-  Serial.print(xAccel);
-  Serial.print(",");
-  Serial.print(yAccel);
-  Serial.print(",");
-  Serial.print(zAccel);
-  Serial.print(",");
-  Serial.print(xGyro);
-  Serial.print(",");
-  Serial.print(yGyro);
-  Serial.print(",");
-  Serial.print(zGyro);
-  Serial.print("\n");
+  //Only prints if a serial monitor is open
+  if(Serial  && TESTING){
+    Serial.println("Recived imu data: " + String(msg.id) + ", " + String(currentMillis) + "ms"
+                    + "\nAcceleration, " + String(xAccel) + "mG, " + String(yAccel) + "mG, " + String(zAccel) + "mG"
+                    + "\nGyro, " + String(xGyro) + "mdps, " + String(yGyro) + "mpds, " + String(zGyro) + "mdps");
+  }
 }
 
 void wheelSniff(const CAN_message_t &msg, unsigned long currentMillis)
@@ -291,39 +267,54 @@ void wheelSniff(const CAN_message_t &msg, unsigned long currentMillis)
     wheel_pkt[28] = br_ambTemp & 0xFF;
     break;
   }
-  Serial.println("Received Wheel Data:");
-  Serial.print(msg.id, HEX);
+  //Only prints if serial monitor is open
+  if(Serial && TESTING){
+    Serial.println("Received Wheel Data: " + String(msg.id) + "," + String(currentMillis) + "ms"
+                    + "\nFront left, " + String(fl_speed) + "RPM, " + String(fl_brakeTemp) + "°, " + String(fl_ambTemp) + "°"
+                    + "\nFront right, "+ String(fr_speed) + "RPM, " + String(fr_brakeTemp) + "°, " + String(fr_ambTemp) + "°"
+                    + "\nRear left, "  + String(bl_speed) + "RPM, " + String(bl_brakeTemp) + "°, " + String(bl_ambTemp) + "°"
+                    + "\nRear right, " + String(br_speed) + "RPM, " + String(br_brakeTemp) + "°, " + String(br_ambTemp) + "°");
+  }
+}
 
-  // Print received data
-  Serial.print(",");
-  Serial.print(currentMillis);
-  Serial.print(",");
-  Serial.print(fl_speed);
-  Serial.print(",");
-  Serial.print(fl_brakeTemp);
-  Serial.print(",");
-  Serial.print(fl_ambTemp);
+void testPacket(){
+  bool boolTest = rand();
+  unsigned long timeTest = rand();
+  u_int8_t int8Test = rand();
+  short shortTest = rand();
+  u_int16_t int16Test = rand();
+  int intTest = rand();
 
-  Serial.print(",");
-  Serial.print(fr_speed);
-  Serial.print(",");
-  Serial.print(fr_brakeTemp);
-  Serial.print(",");
-  Serial.print(fr_ambTemp);
+  pkt[0] = 5;
+  
+  pkt[1] = (timeTest >> 24) & 0xFF;
+  pkt[2] = (timeTest >> 16) & 0xFF;
+  pkt[3] = (timeTest >> 8) & 0xFF;
+  pkt[4] = timeTest & 0xFF;
 
-  Serial.print(",");
-  Serial.print(bl_speed);
-  Serial.print(",");
-  Serial.print(bl_brakeTemp);
-  Serial.print(",");
-  Serial.print(bl_ambTemp);
-  Serial.print(",");
-  Serial.print(br_speed);
-  Serial.print(",");
-  Serial.print(br_brakeTemp);
-  Serial.print(",");
-  Serial.print(br_ambTemp);
-  Serial.print("\n");
+  pkt[5] = boolTest ? 1 : 0;
+  
+  pkt[6] = int8Test & 0xFF;
+
+  pkt[7] = (shortTest >> 8) & 0xFF;
+  pkt[8] = shortTest & 0xFF;
+
+  pkt[9] = (int16Test >> 8) & 0xFF;
+  pkt[10] = int16Test & 0xFF;
+
+  pkt[11] = (intTest >> 24) & 0xFF;
+  pkt[12] = (intTest >> 16) & 0xFF;
+  pkt[13] = (intTest >> 8) & 0xFF;
+  pkt[14] = intTest & 0xFF;
+
+  if(Serial){
+    Serial.println("Created test data: " + String(timeTest) + "ms"
+                  + "\nbool,\t" + String(boolTest)
+                  + "\n8int,\t" + String(int8Test)
+                  + "\nshort,\t" + String(shortTest)
+                  + "\n16int,\t" + String(int16Test)
+                  + "\nint,\t" + String(intTest));
+  }
 }
 
 void canSniff(const CAN_message_t &msg)
@@ -332,7 +323,9 @@ void canSniff(const CAN_message_t &msg)
   dataLogSniff(msg, currentmillis);
   imuSniff(msg, currentmillis);
   wheelSniff(msg, currentmillis);
-  Serial.println("canSniff Called");
+  if(Serial){
+    Serial.println("canSniff Called");
+  }
 }
 
 void loop() {
@@ -340,6 +333,13 @@ void loop() {
   bool sent_imu = driver.send(imu_pkt, sizeof(imu_pkt));
   bool sent_wheel = driver.send(wheel_pkt, sizeof(wheel_pkt));
   bool sent_daq = driver.send(daq_pkt, sizeof(daq_pkt));
-  Serial.println("Sent imu: " + String(sent_imu) + "\t\tSent wheel: " + String(sent_wheel) + "\t\tSent daq: " + String(sent_daq));
+  if(TESTING){
+    testPacket();
+    driver.send(pkt, sizeof(pkt));
+  }
+  driver.waitPacketSent();
+  if(Serial && !TESTING){
+    Serial.println("Sent imu: " + String(sent_imu) + "\t\tSent wheel: " + String(sent_wheel) + "\t\tSent daq: " + String(sent_daq));
+  }
 }
 
