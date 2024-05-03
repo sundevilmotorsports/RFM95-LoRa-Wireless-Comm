@@ -3,6 +3,7 @@
 #include <FlexCAN_T4.h>
 #include <SPI.h>
 #include <iostream>
+#include <chrono>
 
 #define CS 10
 #define G0 2
@@ -76,6 +77,10 @@ void setup() {
   driver.setTxPower(15, true); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
   driver.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048); //Bandwidth of 125, Cognitive Radio 4/5, Spreading Factor 2048
   driver.setModeRx();
+
+  imu_pkt[0] = 1;
+  wheel_pkt[0] = 2;
+  daq_pkt[0] = 3;
 
   Can.begin();
   Can.setBaudRate(1000000);
@@ -335,7 +340,6 @@ void loop() {
   bool sent_imu = driver.send(imu_pkt, sizeof(imu_pkt));
   bool sent_wheel = driver.send(wheel_pkt, sizeof(wheel_pkt));
   bool sent_daq = driver.send(daq_pkt, sizeof(daq_pkt));
-  //Serial.println("Sent imu: " + String(sent_imu) + "\t\tSent wheel: " + String(sent_wheel) + "\t\tSent daq: " + String(sent_daq));
-  delay(interval);
+  Serial.println("Sent imu: " + String(sent_imu) + "\t\tSent wheel: " + String(sent_wheel) + "\t\tSent daq: " + String(sent_daq));
 }
 

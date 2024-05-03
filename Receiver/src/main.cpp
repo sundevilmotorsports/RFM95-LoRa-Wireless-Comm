@@ -58,6 +58,7 @@ void loop() {
     }
   } else {
     Serial.println("Sender not available :(");
+    delay(500);
   }
 }
 
