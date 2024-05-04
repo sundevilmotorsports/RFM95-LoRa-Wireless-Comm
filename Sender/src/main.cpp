@@ -16,10 +16,12 @@ FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> Can;
 
 //Declare packets
 //Max length 251 (RH_RF95_MAX_MESSAGE_LEN), longer the message the longer send time
-uint8_t pkt[32];
-uint8_t imu_pkt[32];
-uint8_t wheel_pkt[32];
-uint8_t daq_pkt[32];
+uint8_t pkt[78];
+
+//indexes:
+  //imu starts at 4
+  //wheel packet starts at 28
+  //daq packet starts at 52
 
 // IMU VARIABLES
 int xAccel = -1;
@@ -58,11 +60,8 @@ int daqCurrentDraw = -1;
 
 
 // Declare functions
-void dataLogSniff(const CAN_message_t &msg, unsigned long currentMillis);
-void imuSniff(const CAN_message_t &msg, unsigned long currentMillis);
-void wheelSniff(const CAN_message_t &msg, unsigned long currentMillis);
 void canSniff(const CAN_message_t &msg);
-void sendData(uint8_t pkt[RH_RF95_MAX_MESSAGE_LEN]);
+void sendData(uint8_t pkt[78]);
 
 //Baud rate, don't set too high or risk data loss
 unsigned long BAUD = 9600;
@@ -72,15 +71,9 @@ void setup() {
   
   Serial.begin(BAUD); //Set Baud rate, don't set too high or risk data loss - might be unused for teensy needs testing
   if (!driver.init())
-    Serial.println("init failed"); 
+      Serial.println("init failed"); 
   else
-    Serial.println("init succeded");
-
-  imu_pkt[0] = 1;
-  wheel_pkt[0] = 2;
-  daq_pkt[0] = 3;
-  pkt[0] = 5;
-
+      Serial.println("init succeded");
 
   driver.setFrequency(915.0); // Median of Hz range
   driver.setTxPower(RH_RF95_MAX_POWER, false); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
@@ -92,192 +85,154 @@ void setup() {
   Can.onReceive(canSniff);
 }
 
-void dataLogSniff(const CAN_message_t &msg, unsigned long currentMillis)
+
+void canSniff(const CAN_message_t &msg)
 {
-
-  daq_pkt[0] = 3;
-
-  // unsigned long currentMillis = millis();
-  daq_pkt[1] = (currentMillis >> 24) & 0xFF;
-  daq_pkt[2] = (currentMillis >> 16) & 0xFF;
-  daq_pkt[3] = (currentMillis >> 8) & 0xFF;
-  daq_pkt[4] = currentMillis & 0xFF;
+  Serial.println("making sure");
+  unsigned long currentMillis = millis();
+  pkt[0] = (currentMillis >> 24) & 0xFF;
+  pkt[1] = (currentMillis >> 16) & 0xFF;
+  pkt[2] = (currentMillis >> 8) & 0xFF;
+  pkt[3] = currentMillis & 0xFF;
 
   switch (msg.id)
   {
-  case 0x367:
-    DRS = msg.buf[0];
-    daq_pkt[5] = DRS ? 1 : 0;
-    break;
-  case 0x368:
-    steeringAngle = (msg.buf[0]) | msg.buf[1] << 8;
-    daq_pkt[6] = (steeringAngle << 8) & 0xFF;
-    daq_pkt[7] = steeringAngle & 0xFF;
-    throttleInput = (msg.buf[2]) | msg.buf[3] << 8;
-    daq_pkt[8] = (throttleInput << 8) & 0xFF;
-    daq_pkt[9] = throttleInput & 0xFF;
-    frontBrakePressure = (msg.buf[4]) | msg.buf[5] << 8;
-    daq_pkt[10] = (frontBrakePressure << 8) & 0xFF;
-    daq_pkt[11] = frontBrakePressure & 0xFF;
-    rearBrakePressure = (msg.buf[6]) | msg.buf[7] << 8;
-    daq_pkt[12] = (rearBrakePressure << 8) & 0xFF;
-    daq_pkt[13] = rearBrakePressure & 0xFF;
-    break;
-  case 0x369:
-    gps_lat = (msg.buf[0] << 24) | (msg.buf[1] << 16) | (msg.buf[2] << 8) | msg.buf[3];
-    daq_pkt[14] = (gps_lat >> 24) & 0xFF;
-    daq_pkt[15] = (gps_lat >> 16) & 0xFF;
-    daq_pkt[16] = (gps_lat >> 8) & 0xFF;
-    daq_pkt[17] = gps_lat & 0xFF;
-    gps_long = (msg.buf[4] << 24) | (msg.buf[5] << 16) | (msg.buf[6] << 8) | msg.buf[7];
-    daq_pkt[18] = (gps_long >> 24) & 0xFF;
-    daq_pkt[19] = (gps_long >> 16) & 0xFF;
-    daq_pkt[20] = (gps_long >> 8) & 0xFF;
-    daq_pkt[21] = gps_long & 0xFF;
-    break;
-  case 0x36A:
-    batteryVoltage = (msg.buf[0] << 24) | (msg.buf[1] << 16) | (msg.buf[2] << 8) | msg.buf[3];
-    daq_pkt[22] = (batteryVoltage >> 24) & 0xFF;
-    daq_pkt[23] = (batteryVoltage >> 16) & 0xFF;
-    daq_pkt[24] = (batteryVoltage >> 8) & 0xFF;
-    daq_pkt[25] = batteryVoltage & 0xFF;
-    daqCurrentDraw = (msg.buf[4] << 24) | (msg.buf[5] << 16) | (msg.buf[6] << 8) | msg.buf[7];
-    daq_pkt[26] = (batteryVoltage >> 24) & 0xFF;
-    daq_pkt[27] = (batteryVoltage >> 16) & 0xFF;
-    daq_pkt[28] = (batteryVoltage >> 8) & 0xFF;
-    daq_pkt[29] = batteryVoltage & 0xFF;
-    break;
-  }
-  //Only print if serial monitor is open
-  if(Serial && TESTING){
-    Serial.println("Received Data Log: " + String(msg.id) + ", " + String(currentMillis) + "ms"
-                    + "\nDRS, " + String(DRS)
-                    + "\nSteering Angle, " + String(steeringAngle) + "°"
-                    + "\nThrottle, " + String(throttleInput) + "%"
-                    + "\nBrake Pressure, " + String(frontBrakePressure) + "BAR, " + String(rearBrakePressure) + "BAR"
-                    + "\ngps, " + String(gps_lat) + "Decimal Degrees, " + String(gps_long) + "Decimal Degrees"
-                    + "\nBattery, " + String(batteryVoltage) + "mV, " + String(daqCurrentDraw) + "mA");
-  }
-}
-
-
-void imuSniff(const CAN_message_t &msg, unsigned long currentMillis)
-{
-  imu_pkt[0] = 1;
-
-  // unsigned long currentMillis = millis();
-  imu_pkt[1] = (currentMillis >> 24) & 0xFF;
-  imu_pkt[2] = (currentMillis >> 16) & 0xFF;
-  imu_pkt[3] = (currentMillis >> 8) & 0xFF;
-  imu_pkt[4] = currentMillis & 0xFF;
-
-  switch (msg.id)
-  {
-  case 0x360:
-    xAccel = (msg.buf[0] << 24) | (msg.buf[1] << 16) | (msg.buf[2] << 8) | msg.buf[3];
-    imu_pkt[5] = (xAccel >> 24) & 0xFF;
-    imu_pkt[6] = (xAccel >> 16) & 0xFF;
-    imu_pkt[7] = (xAccel >> 8) & 0xFF;
-    imu_pkt[8] = xAccel & 0xFF;
-    yAccel = (msg.buf[4] << 24) | (msg.buf[5] << 16) | (msg.buf[6] << 8) | msg.buf[7];
-    imu_pkt[9] = (yAccel >> 24) & 0xFF;
-    imu_pkt[10] = (yAccel >> 16) & 0xFF;
-    imu_pkt[11] = (yAccel >> 8) & 0xFF;
-    imu_pkt[12] = yAccel & 0xFF;
-    break;
-  case 0x361:
-    zAccel = (msg.buf[0] << 24) | (msg.buf[1] << 16) | (msg.buf[2] << 8) | msg.buf[3];
-    imu_pkt[13] = (zAccel >> 24) & 0xFF;
-    imu_pkt[14] = (zAccel >> 16) & 0xFF;
-    imu_pkt[15] = (zAccel >> 8) & 0xFF;
-    imu_pkt[16] = zAccel & 0xFF;
-    xGyro = (msg.buf[4] << 24) | (msg.buf[5] << 16) | (msg.buf[6] << 8) | msg.buf[7];
-    imu_pkt[17] = (xGyro >> 24) & 0xFF;
-    imu_pkt[18] = (xGyro >> 16) & 0xFF;
-    imu_pkt[19] = (xGyro >> 8) & 0xFF;
-    imu_pkt[20] = xGyro & 0xFF;
-    break;
-  case 0x362:
-    yGyro = (msg.buf[0] << 24) | (msg.buf[1] << 16) | (msg.buf[2] << 8) | msg.buf[3];
-    imu_pkt[21] = (yGyro >> 24) & 0xFF;
-    imu_pkt[22] = (yGyro >> 16) & 0xFF;
-    imu_pkt[23] = (yGyro >> 8) & 0xFF;
-    imu_pkt[24] = yGyro & 0xFF;
-    zGyro = (msg.buf[4] << 24) | (msg.buf[5] << 16) | (msg.buf[6] << 8) | msg.buf[7];
-    imu_pkt[25] = (zGyro >> 24) & 0xFF;
-    imu_pkt[26] = (zGyro >> 16) & 0xFF;
-    imu_pkt[27] = (zGyro >> 8) & 0xFF;
-    imu_pkt[28] = zGyro & 0xFF;
-    break;
-  }
-  //Only prints if a serial monitor is open
-  if(Serial  && TESTING){
-    Serial.println("Recived imu data: " + String(msg.id) + ", " + String(currentMillis) + "ms"
-                    + "\nAcceleration, " + String(xAccel) + "mG, " + String(yAccel) + "mG, " + String(zAccel) + "mG"
-                    + "\nGyro, " + String(xGyro) + "mdps, " + String(yGyro) + "mpds, " + String(zGyro) + "mdps");
-  }
-}
-
-void wheelSniff(const CAN_message_t &msg, unsigned long currentMillis)
-{
-  wheel_pkt[0] = 2;
-
-  // unsigned long currentMillis = millis();
-  wheel_pkt[1] = (currentMillis >> 24) & 0xFF;
-  wheel_pkt[2] = (currentMillis >> 16) & 0xFF;
-  wheel_pkt[3] = (currentMillis >> 8) & 0xFF;
-  wheel_pkt[4] = currentMillis & 0xFF;
-
-  switch (msg.id)
-  {
-  case 0x363:
-    fl_speed = (msg.buf[0]) | msg.buf[1] << 8;
-    wheel_pkt[5] = (fl_speed >> 8) & 0xFF;
-    wheel_pkt[6] = fl_speed & 0xFF;
-    fl_brakeTemp = (msg.buf[2]) | msg.buf[3] << 8;
-    wheel_pkt[7] = (fl_brakeTemp >> 8) & 0xFF;
-    wheel_pkt[8] = fl_brakeTemp & 0xFF;
-    fl_ambTemp = (msg.buf[4]) | msg.buf[5] << 8;
-    wheel_pkt[9] = (fl_ambTemp >> 8) & 0xFF;
-    wheel_pkt[10] = fl_ambTemp & 0xFF;
-    break;
-  case 0x364:
-    fr_speed = (msg.buf[0]) | msg.buf[1] << 8;
-    wheel_pkt[11] = (fr_speed >> 8) & 0xFF;
-    wheel_pkt[12] = fr_speed & 0xFF;
-    fr_brakeTemp = (msg.buf[2]) | msg.buf[3] << 8;
-    wheel_pkt[13] = (fr_brakeTemp >> 8) & 0xFF;
-    wheel_pkt[14] = fr_brakeTemp & 0xFF;
-    fr_ambTemp = (msg.buf[4]) | msg.buf[5] << 8;
-    wheel_pkt[15] = (fr_ambTemp >> 8) & 0xFF;
-    wheel_pkt[16] = fr_ambTemp & 0xFF;
-    break;
-  case 0x365:
-    bl_speed = (msg.buf[0]) | msg.buf[1] << 8;
-    wheel_pkt[17] = (bl_speed >> 8) & 0xFF;
-    wheel_pkt[18] = bl_speed & 0xFF;
-    bl_brakeTemp = (msg.buf[2]) | msg.buf[3] << 8;
-    wheel_pkt[19] = (bl_brakeTemp >> 8) & 0xFF;
-    wheel_pkt[20] = bl_brakeTemp & 0xFF;
-    bl_ambTemp = (msg.buf[4]) | msg.buf[5] << 8;
-    wheel_pkt[21] = (bl_ambTemp >> 8) & 0xFF;
-    wheel_pkt[22] = bl_ambTemp & 0xFF;
-    break;
-  case 0x366:
-    br_speed = (msg.buf[0]) | msg.buf[1] << 8;
-    wheel_pkt[23] = (br_speed >> 8) & 0xFF;
-    wheel_pkt[24] = br_speed & 0xFF;
-    br_brakeTemp = (msg.buf[2]) | msg.buf[3] << 8;
-    wheel_pkt[25] = (br_brakeTemp >> 8) & 0xFF;
-    wheel_pkt[26] = br_brakeTemp & 0xFF;
-    br_ambTemp = (msg.buf[4]) | msg.buf[5] << 8;
-    wheel_pkt[27] = (br_ambTemp >> 8) & 0xFF;
-    wheel_pkt[28] = br_ambTemp & 0xFF;
-    break;
+    case 0x360:
+      xAccel = (msg.buf[0] << 24) | (msg.buf[1] << 16) | (msg.buf[2] << 8) | msg.buf[3];
+      pkt[4] = (xAccel >> 24) & 0xFF;
+      pkt[5] = (xAccel >> 16) & 0xFF;
+      pkt[6] = (xAccel >> 8) & 0xFF;
+      pkt[7] = xAccel & 0xFF;
+      yAccel = (msg.buf[4] << 24) | (msg.buf[5] << 16) | (msg.buf[6] << 8) | msg.buf[7];
+      pkt[8] = (yAccel >> 24) & 0xFF;
+      pkt[9] = (yAccel >> 16) & 0xFF;
+      pkt[10] = (yAccel >> 8) & 0xFF;
+      pkt[11] = yAccel & 0xFF;
+      break;
+    case 0x361:
+      zAccel = (msg.buf[0] << 24) | (msg.buf[1] << 16) | (msg.buf[2] << 8) | msg.buf[3];
+      pkt[12] = (zAccel >> 24) & 0xFF;
+      pkt[13] = (zAccel >> 16) & 0xFF;
+      pkt[14] = (zAccel >> 8) & 0xFF;
+      pkt[15] = zAccel & 0xFF;
+      xGyro = (msg.buf[4] << 24) | (msg.buf[5] << 16) | (msg.buf[6] << 8) | msg.buf[7];
+      pkt[16] = (xGyro >> 24) & 0xFF;
+      pkt[17] = (xGyro >> 16) & 0xFF;
+      pkt[18] = (xGyro >> 8) & 0xFF;
+      pkt[19] = xGyro & 0xFF;
+      break;
+    case 0x362:
+      yGyro = (msg.buf[0] << 24) | (msg.buf[1] << 16) | (msg.buf[2] << 8) | msg.buf[3];
+      pkt[20] = (yGyro >> 24) & 0xFF;
+      pkt[21] = (yGyro >> 16) & 0xFF;
+      pkt[22] = (yGyro >> 8) & 0xFF;
+      pkt[23] = yGyro & 0xFF;
+      zGyro = (msg.buf[4] << 24) | (msg.buf[5] << 16) | (msg.buf[6] << 8) | msg.buf[7];
+      pkt[24] = (zGyro >> 24) & 0xFF;
+      pkt[25] = (zGyro >> 16) & 0xFF;
+      pkt[26] = (zGyro >> 8) & 0xFF;
+      pkt[27] = zGyro & 0xFF;
+      break;
+    case 0x363:
+      fl_speed = (msg.buf[0]) | msg.buf[1] << 8;
+      pkt[28] = (fl_speed >> 8) & 0xFF;
+      pkt[29] = fl_speed & 0xFF;
+      fl_brakeTemp = (msg.buf[2]) | msg.buf[3] << 8;
+      pkt[30] = (fl_brakeTemp >> 8) & 0xFF;
+      pkt[31] = fl_brakeTemp & 0xFF;
+      fl_ambTemp = (msg.buf[4]) | msg.buf[5] << 8;
+      pkt[32] = (fl_ambTemp >> 8) & 0xFF;
+      pkt[33] = fl_ambTemp & 0xFF;
+      break;
+    case 0x364:
+      fr_speed = (msg.buf[0]) | msg.buf[1] << 8;
+      pkt[34] = (fr_speed >> 8) & 0xFF;
+      pkt[35] = fr_speed & 0xFF;
+      fr_brakeTemp = (msg.buf[2]) | msg.buf[3] << 8;
+      pkt[36] = (fr_brakeTemp >> 8) & 0xFF;
+      pkt[37] = fr_brakeTemp & 0xFF;
+      fr_ambTemp = (msg.buf[4]) | msg.buf[5] << 8;
+      pkt[38] = (fr_ambTemp >> 8) & 0xFF;
+      pkt[39] = fr_ambTemp & 0xFF;
+      break;
+    case 0x365:
+      bl_speed = (msg.buf[0]) | msg.buf[1] << 8;
+      pkt[40] = (bl_speed >> 8) & 0xFF;
+      pkt[41] = bl_speed & 0xFF;
+      bl_brakeTemp = (msg.buf[2]) | msg.buf[3] << 8;
+      pkt[42] = (bl_brakeTemp >> 8) & 0xFF;
+      pkt[43] = bl_brakeTemp & 0xFF;
+      bl_ambTemp = (msg.buf[4]) | msg.buf[5] << 8;
+      pkt[44] = (bl_ambTemp >> 8) & 0xFF;
+      pkt[45] = bl_ambTemp & 0xFF;
+      break;
+    case 0x366:
+      br_speed = (msg.buf[0]) | msg.buf[1] << 8;
+      pkt[46] = (br_speed >> 8) & 0xFF;
+      pkt[47] = br_speed & 0xFF;
+      br_brakeTemp = (msg.buf[2]) | msg.buf[3] << 8;
+      pkt[48] = (br_brakeTemp >> 8) & 0xFF;
+      pkt[49] = br_brakeTemp & 0xFF;
+      br_ambTemp = (msg.buf[4]) | msg.buf[5] << 8;
+      pkt[50] = (br_ambTemp >> 8) & 0xFF;
+      pkt[51] = br_ambTemp & 0xFF;
+      break;
+    case 0x367:
+      DRS = msg.buf[0];
+      pkt[52] = DRS ? 1 : 0;
+      break;
+    case 0x368:
+      steeringAngle = (msg.buf[0]) | msg.buf[1] << 8;
+      pkt[53] = (steeringAngle << 8) & 0xFF;
+      pkt[54] = steeringAngle & 0xFF;
+      throttleInput = (msg.buf[2]) | msg.buf[3] << 8;
+      pkt[55] = (throttleInput << 8) & 0xFF;
+      pkt[56] = throttleInput & 0xFF;
+      frontBrakePressure = (msg.buf[4]) | msg.buf[5] << 8;
+      pkt[57] = (frontBrakePressure << 8) & 0xFF;
+      pkt[58] = frontBrakePressure & 0xFF;
+      rearBrakePressure = (msg.buf[6]) | msg.buf[7] << 8;
+      pkt[59] = (rearBrakePressure << 8) & 0xFF;
+      pkt[60] = rearBrakePressure & 0xFF;
+      break;
+    case 0x369:
+      gps_lat = (msg.buf[0] << 24) | (msg.buf[1] << 16) | (msg.buf[2] << 8) | msg.buf[3];
+      pkt[61] = (gps_lat >> 24) & 0xFF;
+      pkt[62] = (gps_lat >> 16) & 0xFF;
+      pkt[63] = (gps_lat >> 8) & 0xFF;
+      pkt[64] = gps_lat & 0xFF;
+      gps_long = (msg.buf[4] << 24) | (msg.buf[5] << 16) | (msg.buf[6] << 8) | msg.buf[7];
+      pkt[65] = (gps_long >> 24) & 0xFF;
+      pkt[66] = (gps_long >> 16) & 0xFF;
+      pkt[67] = (gps_long >> 8) & 0xFF;
+      pkt[68] = gps_long & 0xFF;
+      break;
+    case 0x36A:
+      batteryVoltage = (msg.buf[0] << 24) | (msg.buf[1] << 16) | (msg.buf[2] << 8) | msg.buf[3];
+      pkt[69] = (batteryVoltage >> 24) & 0xFF;
+      pkt[70] = (batteryVoltage >> 16) & 0xFF;
+      pkt[71] = (batteryVoltage >> 8) & 0xFF;
+      pkt[72] = batteryVoltage & 0xFF;
+      daqCurrentDraw = (msg.buf[4] << 24) | (msg.buf[5] << 16) | (msg.buf[6] << 8) | msg.buf[7];
+      pkt[73] = (batteryVoltage >> 24) & 0xFF;
+      pkt[74] = (batteryVoltage >> 16) & 0xFF;
+      pkt[75] = (batteryVoltage >> 8) & 0xFF;
+      pkt[76] = batteryVoltage & 0xFF;
+      break;
   }
   //Only prints if serial monitor is open
-  if(Serial && TESTING){
-    Serial.println("Received Wheel Data: " + String(msg.id) + "," + String(currentMillis) + "ms"
+  if(Serial && !TESTING){
+    Serial.println("Received Data Log: " + String(msg.id) + ", " + String(currentMillis) + "ms"
+                     + "\nDRS, " + String(DRS)
+                     + "\nSteering Angle, " + String(steeringAngle) + "°"
+                     + "\nThrottle, " + String(throttleInput) + "%"
+                     + "\nBrake Pressure, " + String(frontBrakePressure) + "BAR, " + String(rearBrakePressure) + "BAR"
+                     + "\ngps, " + String(gps_lat) + "Decimal Degrees, " + String(gps_long) + "Decimal Degrees"
+                     + "\nBattery, " + String(batteryVoltage) + "mV, " + String(daqCurrentDraw) + "mA");
+     Serial.println("Recived imu data: " + String(currentMillis) + "ms"
+                     + "\nAcceleration, " + String(xAccel) + "mG, " + String(yAccel) + "mG, " + String(zAccel) + "mG"
+                     + "\nGyro, " + String(xGyro) + "mdps, " + String(yGyro) + "mpds, " + String(zGyro) + "mdps");
+    Serial.println("Received Wheel Data: " + String(currentMillis) + "ms"
                     + "\nFront left, " + String(fl_speed) + "RPM, " + String(fl_brakeTemp) + "°, " + String(fl_ambTemp) + "°"
                     + "\nFront right, "+ String(fr_speed) + "RPM, " + String(fr_brakeTemp) + "°, " + String(fr_ambTemp) + "°"
                     + "\nRear left, "  + String(bl_speed) + "RPM, " + String(bl_brakeTemp) + "°, " + String(bl_ambTemp) + "°"
@@ -288,67 +243,46 @@ void wheelSniff(const CAN_message_t &msg, unsigned long currentMillis)
 void testPacket(){
   bool boolTest = rand();
   unsigned long timeTest = rand();
-  u_int8_t int8Test = rand();
   short shortTest = rand();
   u_int16_t int16Test = rand();
   int intTest = rand();
-
-  pkt[0] = 5;
   
-  pkt[1] = (timeTest >> 24) & 0xFF;
-  pkt[2] = (timeTest >> 16) & 0xFF;
-  pkt[3] = (timeTest >> 8) & 0xFF;
-  pkt[4] = timeTest & 0xFF;
+  pkt[0] = (timeTest >> 24) & 0xFF;
+  pkt[1] = (timeTest >> 16) & 0xFF;
+  pkt[2] = (timeTest >> 8) & 0xFF;
+  pkt[3] = timeTest & 0xFF;
 
-  pkt[5] = boolTest ? 1 : 0;
+  pkt[4] = (intTest >> 24) & 0xFF;
+  pkt[5] = (intTest >> 16) & 0xFF;
+  pkt[6] = (intTest >> 8) & 0xFF;
+  pkt[7] = intTest & 0xFF;
   
-  pkt[6] = int8Test & 0xFF;
+  pkt[28] = (int16Test >> 8) & 0xFF;
+  pkt[29] = int16Test & 0xFF;
 
-  pkt[7] = (shortTest >> 8) & 0xFF;
-  pkt[8] = shortTest & 0xFF;
+  pkt[30] = (shortTest >> 8) & 0xFF;
+  pkt[31] = shortTest & 0xFF;
 
-  pkt[9] = (int16Test >> 8) & 0xFF;
-  pkt[10] = int16Test & 0xFF;
-
-  pkt[11] = (intTest >> 24) & 0xFF;
-  pkt[12] = (intTest >> 16) & 0xFF;
-  pkt[13] = (intTest >> 8) & 0xFF;
-  pkt[14] = intTest & 0xFF;
+  pkt[52] = boolTest ? 1 : 0;
 
   if(Serial){
     Serial.println("Created test data: \nlong,\t" 
                   + String(timeTest) + "ms"
                   + "\nbool,\t" + String(boolTest)
-                  + "\n8int,\t" + String(int8Test)
                   + "\nshort,\t" + String(shortTest)
                   + "\n16int,\t" + String(int16Test)
                   + "\nint,\t" + String(intTest));
   }
 }
 
-void canSniff(const CAN_message_t &msg)
-{
-  unsigned long currentmillis = millis();
-  dataLogSniff(msg, currentmillis);
-  imuSniff(msg, currentmillis);
-  wheelSniff(msg, currentmillis);
-  if(Serial){
-    Serial.println("canSniff Called");
-  }
-}
-
 void loop() {
-  // put your main code here, to run repeatedly:
-  bool sent_imu = driver.send(imu_pkt, sizeof(imu_pkt));
-  bool sent_wheel = driver.send(wheel_pkt, sizeof(wheel_pkt));
-  bool sent_daq = driver.send(daq_pkt, sizeof(daq_pkt));
   if(TESTING){
     testPacket();
-    driver.send(pkt, sizeof(pkt));
   }
+  bool sent_pkt = driver.send(pkt, sizeof(pkt));
   driver.waitPacketSent();
-  if(Serial && !TESTING){
-    Serial.println("Sent imu: " + String(sent_imu) + "\t\tSent wheel: " + String(sent_wheel) + "\t\tSent daq: " + String(sent_daq));
+  if(Serial){
+    Serial.println("Sent pkt: " + String(sent_pkt));
   }
 }
 
