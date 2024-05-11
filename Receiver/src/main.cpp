@@ -70,11 +70,11 @@ void canRead() {
   float fl_brakeTemp = (pkt[30] << 8) | pkt[31];
   float fl_ambTemp = (pkt[32] << 8) | pkt[33];
 
-  float fr_speed = (pkt[33] << 8) | pkt[34];
-  float fr_brakeTemp = (pkt[35] << 8) | pkt[36];
-  float fr_ambTemp = (pkt[37] << 8) | pkt[38];
+  float fr_speed = (pkt[34] << 8) | pkt[35];
+  float fr_brakeTemp = (pkt[36] << 8) | pkt[37];
+  float fr_ambTemp = (pkt[38] << 8) | pkt[39];
 
-  float bl_speed = (pkt[39] << 8) | pkt[41];
+  float bl_speed = (pkt[40] << 8) | pkt[41];
   float bl_brakeTemp = (pkt[42] << 8) | pkt[43];
   float bl_ambTemp = (pkt[44] << 8) | pkt[45];
 
