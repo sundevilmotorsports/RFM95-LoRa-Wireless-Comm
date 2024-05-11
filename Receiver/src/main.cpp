@@ -12,6 +12,7 @@ uint8_t length = sizeof(pkt);
 bool read;
 
 //Declare functions
+void decode();
 void imuRead();
 void wheelRead();
 void dataLogRead();
@@ -41,25 +42,9 @@ void setup(){
 void loop() {
   if(driver.available()){
     read = driver.recv(pkt, &length);
-    uint8_t ID = pkt[0];
     //If we were able to read packet choose decode function using ID
     if(read){
-      switch(ID){
-        case 1:
-          imuRead();
-          break;
-        case 2:
-          wheelRead();
-          break;
-        case 3:
-          dataLogRead();
-          break;
-        case 5:
-          testRead();
-        default:
-          //Serial.println("received empty packet");
-          break;
-      }
+      decode();
       driver.waitAvailableTimeout(INTERVAL2);
     } else {
       Serial.println("Unable to read packet");
@@ -70,6 +55,67 @@ void loop() {
   }
 }
 
+void decode(){
+  //Vals printed to serial:
+  // ID, Time (ms), x Acceleration (mG), y Acceleration (mG), z Acceleration (mG), x Gyro (mdps), y Gyro (mdps), z Gyro (mdps)
+  // ID, Time (ms), FL speed(RPM), FL brake temp(C), FL ambient temp (C), FR speed(RPM), FR brake temp(C), FR ambient temp (C), BL speed(RPM), BL brake temp(C), BL ambient temp (C), BR speed(RPM), BR brake temp(C), BR ambient temp (C)
+  // ID, Time (ms), DRS (bool), steeringAngle(deg), throttle input (percent), Front brake pressure (BAR), Rear break pressure (BAR), GPS Lattitude (DD), GPS Longitude (DD),battery voltage (mV), daq draw (mA)
+  unsigned long timestamp = (unsigned long) pkt[0] << 24 | (unsigned long) pkt[1] << 16 | (unsigned long) pkt[2] << 8 | (unsigned long) pkt[3];
+  float xAccel = (pkt[4] << 24) | (pkt[5] << 16) | (pkt[6] << 8) | pkt[7]; 
+  float yAccel = (pkt[8] << 24) | (pkt[9] << 16) | (pkt[10] << 8) | pkt[11];
+  float zAccel = (pkt[12] << 24) | (pkt[13] << 16) | (pkt[14] << 8) | pkt[15];
+
+
+  float xGyro = (pkt[16] << 24) | (pkt[17] << 16) | (pkt[18] << 8) | pkt[19];
+  float yGyro = (pkt[20] << 24) | (pkt[21] << 16) | (pkt[22] << 8) | pkt[23];
+  float zGyro = (pkt[24] << 24) | (pkt[25] << 16) | (pkt[26] << 8) | pkt[27];
+
+  Serial.print("1," + String(timestamp) + ","  + 
+    String(xAccel) + "," + String(yAccel) + "," + String(zAccel) + "," + 
+    String(xGyro)  + "," + String(yGyro)  + "," + String(zGyro)  + "\n");
+
+  float fl_speed = (pkt[28] << 8) | pkt[29];
+  float fl_brakeTemp = (pkt[30] << 8) | pkt[31];
+  float fl_ambTemp = (pkt[32] << 8) | pkt[33];
+
+  float fr_speed = (pkt[34] << 8) | pkt[35];
+  float fr_brakeTemp = (pkt[36] << 8) | pkt[37];
+  float fr_ambTemp = (pkt[38] << 8) | pkt[39];
+
+  float bl_speed = (pkt[40] << 8) | pkt[41];
+  float bl_brakeTemp = (pkt[42] << 8) | pkt[43];
+  float bl_ambTemp = (pkt[44] << 8) | pkt[45];
+
+  float br_speed = (pkt[46] << 8) | pkt[47];
+  float br_brakeTemp = (pkt[48] << 8) | pkt[49];
+  float br_ambTemp = (pkt[50] << 8) | pkt[51];
+
+  Serial.print("2," + String(timestamp) + ","  + 
+    String(fl_speed) + "," + String(fl_brakeTemp) + "," + String(fl_ambTemp) + "," + 
+    String(fr_speed) + "," + String(fr_brakeTemp) + "," + String(fr_ambTemp) + "," + 
+    String(bl_speed) + "," + String(bl_brakeTemp) + "," + String(bl_ambTemp) + "," +
+    String(br_speed) + "," + String(br_brakeTemp) + "," + String(br_ambTemp) + "\n");
+
+  uint8_t drsToggle = pkt[52];
+  float steeringAngle = (pkt[53] << 8) | pkt[54];
+  float throttleInput = (pkt[55] << 8) | pkt[56];
+
+  float frontBrakePressure = (pkt[57] << 8) | pkt[58];
+  float rearBrakePressure = (pkt[59] << 8) | pkt[60];
+
+  float gpsLatitude = ((pkt[61] << 24) | (pkt[62] << 16) | (pkt[63] << 8) | pkt[64])/10000000;
+  float gpsLongitude = ((pkt[65]<< 24) | (pkt[66] << 16) | (pkt[67] << 8) | pkt[68])/10000000;
+  
+  float batteryVoltage = (pkt[69] << 24) | (pkt[70] << 16) | (pkt[71] << 8) | pkt[72];
+  float daqCurrentDraw = (pkt[73] << 24) | (pkt[74] << 16) | (pkt[75] << 8) | pkt[76];
+
+  Serial.print("3," + String(timestamp) + ","  + String(drsToggle) + "," + String(steeringAngle) + "," + String(throttleInput) + "," + 
+    String(frontBrakePressure) + "," + String(rearBrakePressure) + "," + 
+    String(gpsLatitude)        + "," + String(gpsLongitude)      + "," + 
+    String(batteryVoltage)     + "," + String(daqCurrentDraw)    + "\n");
+}
+
+//obsolete, use for reference
 void imuRead(){
   //Vals printed to serial:
   // ID, Time (ms), x Acceleration (mG), y Acceleration (mG), z Acceleration (mG), x Gyro (mdps), y Gyro (mdps), z Gyro (mdps)
@@ -86,6 +132,28 @@ void imuRead(){
   Serial.print("1," + String(timestamp) + ","  + 
     String(xAccel) + "," + String(yAccel) + "," + String(zAccel) + "," + 
     String(xGyro)  + "," + String(yGyro)  + "," + String(zGyro)  + "\n");
+
+  float fl_speed = (pkt[5] << 8) | pkt[6];
+  float fl_brakeTemp = (pkt[7] << 8) | pkt[8];
+  float fl_ambTemp = (pkt[9] << 8) | pkt[10];
+
+  float fr_speed = (pkt[11] << 8) | pkt[12];
+  float fr_brakeTemp = (pkt[13] << 8) | pkt[14];
+  float fr_ambTemp = (pkt[15] << 8) | pkt[16];
+
+  float bl_speed = (pkt[17] << 8) | pkt[18];
+  float bl_brakeTemp = (pkt[19] << 8) | pkt[20];
+  float bl_ambTemp = (pkt[21] << 8) | pkt[22];
+
+  float br_speed = (pkt[23] << 8) | pkt[24];
+  float br_brakeTemp = (pkt[25] << 8) | pkt[26];
+  float br_ambTemp = (pkt[27] << 8) | pkt[28];
+
+  Serial.print("1," + String(timestamp) + ","  + 
+    String(fl_speed) + "," + String(fl_brakeTemp) + "," + String(fl_ambTemp) + "," + 
+    String(fr_speed) + "," + String(fr_brakeTemp) + "," + String(fr_ambTemp) + "," + 
+    String(bl_speed) + "," + String(bl_brakeTemp) + "," + String(bl_ambTemp) + "," +
+    String(br_speed) + "," + String(br_brakeTemp) + "," + String(br_ambTemp) + "\n");
 }
 
 void wheelRead() {

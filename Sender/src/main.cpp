@@ -88,7 +88,6 @@ void setup() {
 
 void canSniff(const CAN_message_t &msg)
 {
-  Serial.println("making sure");
   unsigned long currentMillis = millis();
   pkt[0] = (currentMillis >> 24) & 0xFF;
   pkt[1] = (currentMillis >> 16) & 0xFF;
