@@ -29,10 +29,12 @@ unsigned long BAUD = 9600;
 
 void setup(){
   Serial.begin(BAUD);
-  if (!driver.init())
-    Serial.println("init failed"); 
-  else
-    Serial.println("init succeded");
+  while(!Serial);
+  driver.init();
+  // if (!driver.init())
+  //   Serial.println("init failed"); 
+  // else
+  //   Serial.println("init succeded");
   driver.setFrequency(915.0); // Median of Hz range
   driver.setTxPower(23, false); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
   driver.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048); //Bandwidth of 125, Cognitive Radio 4/5, Spreading Factor 2048
@@ -46,7 +48,7 @@ void loop() {
     canRead();
     driver.waitAvailableTimeout(INTERVAL2);
   } else {
-    Serial.println("Sender not available :(");
+    //Serial.println("Sender not available :(");
     delay(INTERVAL1);
   }
 }
