@@ -93,7 +93,6 @@ void canSniff(const CAN_message_t &msg)
   pkt[1] = (currentMillis >> 16) & 0xFF;
   pkt[2] = (currentMillis >> 8) & 0xFF;
   pkt[3] = currentMillis & 0xFF;
-
   switch (msg.id)
   {
     case 0x360:
@@ -220,7 +219,7 @@ void canSniff(const CAN_message_t &msg)
       break;
   }
   //Only prints if serial monitor is open
-  if(Serial && !TESTING){
+  if(Serial && TESTING){
     Serial.println("Received Data Log: " + String(msg.id) + ", " + String(currentMillis) + "ms"
                      + "\nDRS, " + String(DRS)
                      + "\nSteering Angle, " + String(steeringAngle) + "°"
@@ -275,9 +274,9 @@ void testPacket(){
 }
 
 void loop() {
-  if(TESTING){
-    testPacket();
-  }
+  // if(TESTING){
+  //   testPacket();
+  // }
   bool sent_pkt = driver.send(pkt, sizeof(pkt));
   driver.waitPacketSent();
   if(Serial){
