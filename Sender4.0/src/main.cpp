@@ -8,7 +8,7 @@
 #define CS 10
 #define G0 2
 #define LED 13
-#define TESTING false
+#define TESTING true
 
 //Declaring radio and can
 RH_RF95 driver(CS, G0);
@@ -58,6 +58,7 @@ int gps_long = -1;
 int batteryVoltage = -1;
 int daqCurrentDraw = -1;
 
+int temp;
 
 // Declare functions
 void canSniff(const CAN_message_t &msg);
@@ -101,6 +102,7 @@ void canSniff(const CAN_message_t &msg)
       pkt[5] = (xAccel >> 16) & 0xFF;
       pkt[6] = (xAccel >> 8) & 0xFF;
       pkt[7] = xAccel & 0xFF;
+      temp = pkt[4] | pkt[5] | pkt[6] | pkt[7];
       yAccel = (msg.buf[4] << 24) | (msg.buf[5] << 16) | (msg.buf[6] << 8) | msg.buf[7];
       pkt[8] = (yAccel >> 24) & 0xFF;
       pkt[9] = (yAccel >> 16) & 0xFF;
@@ -218,23 +220,24 @@ void canSniff(const CAN_message_t &msg)
       pkt[76] = batteryVoltage & 0xFF;
       break;
   }
-  //Only prints if serial monitor is open
+  //Only prints if serial monitor is open and testing
   if(Serial && TESTING){
-    Serial.println("Received Data Log: " + String(msg.id) + ", " + String(currentMillis) + "ms"
+    Serial.println("Received Data Log: " + String(msg.id) + ",\t" + String(currentMillis) + " ms"
                      + "\nDRS, " + String(DRS)
-                     + "\nSteering Angle, " + String(steeringAngle) + "°"
-                     + "\nThrottle, " + String(throttleInput) + "%"
-                     + "\nBrake Pressure, " + String(frontBrakePressure) + "BAR, " + String(rearBrakePressure) + "BAR"
-                     + "\ngps, " + String(gps_lat) + "Decimal Degrees, " + String(gps_long) + "Decimal Degrees"
-                     + "\nBattery, " + String(batteryVoltage) + "mV, " + String(daqCurrentDraw) + "mA");
-     Serial.println("Recived imu data: " + String(currentMillis) + "ms"
-                     + "\nAcceleration, " + String(xAccel) + "mG, " + String(yAccel) + "mG, " + String(zAccel) + "mG"
-                     + "\nGyro, " + String(xGyro) + "mdps, " + String(yGyro) + "mpds, " + String(zGyro) + "mdps");
-    Serial.println("Received Wheel Data: " + String(currentMillis) + "ms"
-                    + "\nFront left, " + String(fl_speed) + "RPM, " + String(fl_brakeTemp) + "°, " + String(fl_ambTemp) + "°"
-                    + "\nFront right, "+ String(fr_speed) + "RPM, " + String(fr_brakeTemp) + "°, " + String(fr_ambTemp) + "°"
-                    + "\nRear left, "  + String(bl_speed) + "RPM, " + String(bl_brakeTemp) + "°, " + String(bl_ambTemp) + "°"
-                    + "\nRear right, " + String(br_speed) + "RPM, " + String(br_brakeTemp) + "°, " + String(br_ambTemp) + "°");
+                     + "\nSteering Angle, " + String(steeringAngle) + " °"
+                     + "\nThrottle, " + String(throttleInput) + " %"
+                     + "\nBrake Pressure, " + String(frontBrakePressure) + " BAR,\t" + String(rearBrakePressure) + "BAR"
+                     + "\ngps, " + String(gps_lat) + " Decimal Degrees,\t" + String(gps_long) + " Decimal Degrees"
+                     + "\nBattery, " + String(batteryVoltage) + " mV,\t" + String(daqCurrentDraw) + " mA");
+     Serial.println("Recived imu data: " + String(currentMillis) + " ms"
+                     + "\nAcceleration, " + String(xAccel) + " mG,\t" + String(yAccel) + " mG,\t" + String(zAccel) + " mG"
+                     + "\nGyro, " + String(xGyro) + " mdps,\t" + String(yGyro) + " mpds,\t" + String(zGyro) + " mdps");
+    Serial.println("Received Wheel Data: " + String(currentMillis) + " ms"
+                    + "\nFront left, " + String(fl_speed) + " RPM,\t" + String(fl_brakeTemp) + " °,\t" + String(fl_ambTemp) + "°"
+                    + "\nFront right, "+ String(fr_speed) + " RPM,\t" + String(fr_brakeTemp) + " °,\t" + String(fr_ambTemp) + "°"
+                    + "\nRear left, "  + String(bl_speed) + " RPM,\t" + String(bl_brakeTemp) + " °,\t" + String(bl_ambTemp) + "°"
+                    + "\nRear right, " + String(br_speed) + " RPM,\t" + String(br_brakeTemp) + " °,\t" + String(br_ambTemp) + "°");
+    
   }
 }
 

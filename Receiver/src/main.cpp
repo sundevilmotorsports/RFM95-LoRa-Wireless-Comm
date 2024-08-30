@@ -44,7 +44,6 @@ void setup(){
 void loop() {
   if(driver.available()){
     read = driver.recv(pkt, &length);
-    uint8_t ID = pkt[0];
     canRead();
     driver.waitAvailableTimeout(INTERVAL2);
   } else {
