@@ -30,19 +30,33 @@ GND ----> GND
 ![Leonardo](https://github.com/sundevilmotorsports/RFM95-LoRa-Wireless-Comm/blob/main/Spec_Sheet/Receiver/Leonardo.jpg)
 
 ## Pinout for Teensy 4.1
-Teansy ----> LoRa
+Teensy ----> LoRa
 
-5v ----> VIN
+5v ----> (lora 1) VIN ----> (lora 2) VIN
 
-13 ----> SCK
+13 ----> (lora 1) SCK ----> (lora 2) SCK
 
-GND ----> GND
+GND ----> (lora 1) GND ----> (lora 2) GND
 
-10 ----> CS
+38 ----> (lora 1) CS
 
-11 ----> MISO
+37 ----> (lora 2) CS
 
-12 ----> MOSI
+11 ----> (lora 1) MOSI ----> (lora 2) MOSI
+
+12 ----> (lora 1) MISO ----> (lora 2) MISO
+
+21 ----> (lora 1) G0
+
+20 ----> (lora 2) G0
+
+CAN ----> 5v
+
+CAN ----> GND
+
+CAN HIGH ----> 23
+
+CAN LOW ----> 22
 
 ## Sender Spec Sheet
 ![Pinout](https://github.com/sundevilmotorsports/RFM95-LoRa-Wireless-Comm/blob/main/Spec_Sheet/Sender/teensy_4.1.PNG)
