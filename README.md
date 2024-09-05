@@ -45,6 +45,6 @@ GND ----> GND
 12 ----> MOSI
 
 ## Sender Spec Sheet
-![Pinout](https://github.com/sundevilmotorsports/RFM95-LoRa-Wireless-Comm/blob/main/Spec_Sheet/Sender/Teensy%204.1.jpg)
-![LoRa](https://github.com/sundevilmotorsports/RFM95-LoRa-Wireless-Comm/blob/main/Spec_Sheet/Sender/Sender%20LoRa.jpg)
+![Pinout](https://github.com/sundevilmotorsports/RFM95-LoRa-Wireless-Comm/blob/main/Spec_Sheet/Sender/teensy_4.1.PNG)
+![LoRa](https://github.com/sundevilmotorsports/RFM95-LoRa-Wireless-Comm/blob/main/Spec_Sheet/Sender/lora_radios.PNG)
 ![Teensy](https://github.com/sundevilmotorsports/RFM95-LoRa-Wireless-Comm/blob/main/Spec_Sheet/Sender/teensyPinout.jpg)
