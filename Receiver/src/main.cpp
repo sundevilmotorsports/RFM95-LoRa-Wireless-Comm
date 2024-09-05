@@ -2,12 +2,18 @@
 #include <RH_RF95.h>
 #include <SPI.h>
 
-#define CS 4
-#define G0 3
+#define CS1 4
+#define G01 3
+
+#define CS0 7
+#define G00 6
+
+#define testing true
 
 //Declaring radio and buffer vars
-RH_RF95 driver(CS, G0);
-uint8_t pkt[77];
+RH_RF95 driver1(CS0, G00);
+RH_RF95 driver2(CS1, G01);
+uint8_t pkt[76];
 uint8_t length = sizeof(pkt);
 bool read;
 
@@ -30,24 +36,35 @@ unsigned long BAUD = 9600;
 void setup(){
   Serial.begin(BAUD);
   while(!Serial);
-  driver.init();
-  // if (!driver.init())
-  //   Serial.println("init failed"); 
-  // else
-  //   Serial.println("init succeded");
-  driver.setFrequency(915.0); // Median of Hz range
-  driver.setTxPower(23, false); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
-  driver.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048); //Bandwidth of 125, Cognitive Radio 4/5, Spreading Factor 2048
-  driver.setModeRx();
+  driver1.init();
+  if (!driver1.init())
+    Serial.println("driver 1 failed"); 
+  else
+    Serial.println("driver 1 succeded");
+
+  driver2.init();
+  if (!driver2.init())
+    Serial.println("driver 2 failed"); 
+  else
+    Serial.println("driver 2 succeded");
+
+  driver1.setFrequency(915.0); // Median of Hz range
+  driver1.setTxPower(23, false); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
+  driver1.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048); //Bandwidth of 125, Cognitive Radio 4/5, Spreading Factor 2048
+  driver1.setModeRx();
 }
 
 void loop() {
-  if(driver.available()){
-    read = driver.recv(pkt, &length);
-    canRead();
-    driver.waitAvailableTimeout(INTERVAL2);
+  if(driver1.available()){
+    read = driver1.recv(pkt, &length);
+    if (testing){
+      testRead();
+    } else {
+      canRead();
+    }
+    driver1.waitAvailableTimeout(INTERVAL2);
   } else {
-    //Serial.println("Sender not available :(");
+    Serial.println("Sender not available :(");
     delay(INTERVAL1);
   }
 }
@@ -110,12 +127,8 @@ void canRead() {
     String(batteryVoltage)     + "," + String(daqCurrentDraw)    + "\n");
 }
 void testRead(){
-  unsigned long longTest = (unsigned long) pkt[1] << 24 | (unsigned long) pkt[2] << 16 | (unsigned long) pkt[3] << 8 | (unsigned long) pkt[4];
-  bool boolTest = pkt[5];
-  float int8Test = pkt[6];
-  float shortTest = pkt[7] << 8 | pkt[8];
-  float int16Test = pkt[9] << 8 | pkt[10];
-  float intTest = pkt[11] << 24 | pkt[12] << 16 | pkt[13] << 8 | pkt[14];
-
-  Serial.println("5," + String(longTest) + "," + String(boolTest) + "," + String(int8Test) + "," + String(shortTest)  + "," + String(int16Test) + "," + String(intTest));
+  for (int i = 0; i < sizeof(pkt); i++){
+    Serial.print(String(pkt[i]) + ", ");
+  }
+  Serial.println();
 }
