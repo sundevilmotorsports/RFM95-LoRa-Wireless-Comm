@@ -6,19 +6,29 @@ Leonardo -----> LoRa
 
 5v ----> VIN
 
-ICSP (SCK) ----> SCK
+ICSP 3 (SCK) ----> SCK
 
-ICSP (MOSI) ----> MOSI
+ICSP 4 (MOSI) ----> MOSI
 
-ICSP (MISO) ----> MISO
+ICSP 1 (MISO) ----> MISO
 
 GND ----> GND
 
-4 ----> CS
+4 ----> (lora 0) CS
 
-3 ---> G0
+0 ----> (lora 0) G0
 
-2 ---> RST
+5 ----> (lora 1) CS
+
+1 ----> (lora 1) G0
+
+6 ----> (lora 2) CS
+
+2 ----> (lora 2) G0
+
+7 ----> (lora 3) CS
+
+3 ----> (lora 3) G0
 
 ## LoRa Documentation
 [RadioHead](https://www.airspayce.com/mikem/arduino/RadioHead/classRH__RF95.html#ab9605810c11c025758ea91b2813666e3)
@@ -32,23 +42,31 @@ GND ----> GND
 ## Pinout for Teensy 4.1
 Teensy ----> LoRa
 
-5v ----> (lora 1) VIN ----> (lora 2) VIN
+5v ----> (lora 0) VIN ----> (lora 0) VIN
 
-13 ----> (lora 1) SCK ----> (lora 2) SCK
+13 ----> (lora 0) SCK ----> (lora 1) SCK
 
-GND ----> (lora 1) GND ----> (lora 2) GND
+GND ----> (lora 0) GND ----> (lora 1) GND
 
-38 ----> (lora 1) CS
+38 ----> (lora 0) CS
 
-37 ----> (lora 2) CS
+37 ----> (lora 1) CS
 
-11 ----> (lora 1) MOSI ----> (lora 2) MOSI
+36 ----> (lora 2) CS
 
-12 ----> (lora 1) MISO ----> (lora 2) MISO
+10 ----> (lora 3) CS
 
-21 ----> (lora 1) G0
+21 ----> (lora 0) G0
 
-20 ----> (lora 2) G0
+20 ----> (lora 1) G0
+
+19 ----> (lora 2) G0
+
+18 ----> (lora 3) GO
+
+11 ----> (lora 0) MOSI ----> (lora 1) MOSI ----> (lora 2) MOSI ----> (lora 3) MOSI
+
+12 ----> (lora 0) MISO ----> (lora 1) MISO ----> (lora 2) MISO ----> (lora 3) MISO
 
 CAN ----> 5v
 

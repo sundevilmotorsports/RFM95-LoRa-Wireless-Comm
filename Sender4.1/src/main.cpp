@@ -17,7 +17,7 @@
 #define CS3 10
 #define G03 18
 
-#define LED 13
+#define SCK 13
 
 #define TESTING false
 
@@ -107,7 +107,7 @@ void getPacket();
 unsigned long BAUD = 9600;
 
 void setup() {
-  pinMode(LED, OUTPUT);
+  pinMode(SCK, OUTPUT);
 
   Serial.begin(BAUD); //Set Baud rate, don't set too high or risk data loss - might be unused for teensy needs testing
   radio1 = driver1.init();

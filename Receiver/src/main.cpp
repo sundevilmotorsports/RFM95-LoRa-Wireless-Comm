@@ -2,11 +2,17 @@
 #include <RH_RF95.h>
 #include <SPI.h>
 
-#define CS1 4
-#define G01 3
+#define CS0 4
+#define G00 0
 
-#define CS0 7
-#define G00 6
+#define CS1 5
+#define G01 1
+
+#define CS2 6
+#define G02 2
+
+#define CS3 7
+#define G03 3
 
 #define testing true
 
