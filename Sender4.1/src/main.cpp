@@ -22,6 +22,42 @@
 #define TESTING false
 
 uint8_t mode = 0;
+class sus {
+  private:
+    uint8_t currGroup = 0;
+    uint8_t currOffset = 0;
+  public:
+    uint8_t packet[126];
+    uint8_t offset = 63;
+    uint8_t groupNum = 2;
+    uint8_t indexies = 6;
+    std::tuple<uint8_t,uint8_t> general_indexies[6] = {std::tuple <uint8_t, uint8_t> (4,29), std::tuple <uint8_t, uint8_t> (34,35), std::tuple <uint8_t, uint8_t> (40,41), std::tuple <uint8_t, uint8_t> (46,47), std::tuple <uint8_t, uint8_t> (52,70), std::tuple <uint8_t, uint8_t> (79,87)};
+    std::tuple<uint8_t, uint8_t> sus_indexies[6] = {std::tuple <uint8_t, uint8_t> (4,29), std::tuple <uint8_t, uint8_t> (30,31), std::tuple <uint8_t, uint8_t> (32,33), std::tuple <uint8_t, uint8_t> (34,35), std::tuple <uint8_t, uint8_t> (36,54), std::tuple <uint8_t, uint8_t> (55,62)};
+
+  
+  void update(){
+    if ((general[0] << 24 | general[1] << 16 | general[2] << 8 | general[3]) > (packet[0 + currOffset] << 24 | packet[1 + currOffset] << 16 | packet[2 + currOffset] << 8 | packet[3 + currOffset]) + 576) {
+      if (currGroup + 1 == groupNum){
+        this -> currGroup = 0;
+      } else {
+        this -> currGroup ++;
+      }
+      for(int i = 0; i < 4; i++){
+        this -> packet[i + currOffset] = general[i];
+      }
+      this -> currOffset = offset * currGroup;
+    }
+    for(uint8_t sections = 0; sections < indexies; sections++){
+      for(uint8_t packet_idx = std::get<0>(general_indexies[sections]); packet_idx <= std::get<1>(general_indexies[sections]); packet_idx++){
+        for(uint8_t general_idx = std::get<0> (general_indexies[sections]); general_idx <= std::get<1>(general_indexies[sections]); general_idx++){
+          this -> packet[packet_idx + currOffset] = general[general_idx];
+        }
+      }
+    }
+  }
+};
+
+sus suspension = sus();
 
 //Declaring radio and can
 RH_RF95 driver1(CS0, G00);
@@ -30,17 +66,17 @@ RH_RF95 driver3(CS2, G02);
 RH_RF95 driver4(CS3, G03);
 FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> Can;
 
-uint8_t susOffset = 63;
+//uint8_t susOffset = 63;
 uint8_t damperOffset = 26;
 uint8_t driveOffset = 37;
 uint8_t slideOffset = 30;
 
-uint8_t susGroupNum = 2;    
+//uint8_t susGroupNum = 2;    
 uint8_t damperGroupNum = 9; 
 uint8_t driveGroupNum = 2;  
 uint8_t slideGroupNum = 5;
 
-uint8_t currSus = 0;    
+//uint8_t currSus = 0;    
 uint8_t currDamp = 0; 
 uint8_t currDrive = 0;  
 uint8_t currSlide = 0;
@@ -53,12 +89,12 @@ bool radio4 = false;
 //Max length 251 (RH_RF95_MAX_MESSAGE_LEN), longer the message the longer send time
 //Length Determined by offset (packet size) * number of groups being sent
 uint8_t general[90];
-uint8_t suspension[126];
+//uint8_t suspension[126];
 uint8_t damper[234];
 uint8_t drive[74];
 uint8_t slide[150];
 
-//indexes for general:
+//indexes for general: !!!NOT UPDATED!!!
   //imu starts at 4
   //wheel packet starts at 28
   //daq packet starts at 52
@@ -110,46 +146,47 @@ void setup() {
   pinMode(SCK, OUTPUT);
 
   Serial.begin(BAUD); //Set Baud rate, don't set too high or risk data loss - might be unused for teensy needs testing
+
   radio1 = driver1.init();
-  radio2 = driver2.init();
-  radio3 = driver3.init();
-  radio4 = driver4.init();
   if (!radio1)
-      Serial.println("init 1 failed"); 
-  else
-      Serial.println("init 1 succeded");
+    Serial.println("init 1 failed"); 
+  else {
+    Serial.println("init 1 succeded");
+    driver1.setFrequency(915.0); // Median of Hz range
+    driver1.setTxPower(RH_RF95_MAX_POWER, false); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
+    driver1.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048); //Bandwidth of 125, Cognitive Radio 4/5, Spreading Factor 2048
+  }
 
+  radio2 = driver2.init();
   if (!radio2)
-      Serial.println("init 2 failed"); 
-  else
-      Serial.println("init 2 succeded");
+    Serial.println("init 2 failed"); 
+  else{
+    Serial.println("init 2 succeded");
+    driver2.setFrequency(915.0);
+    driver2.setTxPower(RH_RF95_MAX_POWER, false);
+    driver2.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
+  }
 
+  radio3 = driver3.init();
   if (!radio3)
-      Serial.println("init 3 failed"); 
-  else
-      Serial.println("init 3 succeded");
+    Serial.println("init 3 failed"); 
+  else{
+    Serial.println("init 3 succeded");
+    driver3.setFrequency(915.0);
+    driver3.setTxPower(RH_RF95_MAX_POWER, false);
+    driver3.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
+  }
 
+  radio4 = driver4.init();
   if (!radio4)
-      Serial.println("init 4 failed"); 
-  else
-      Serial.println("init 4 succeded");
-
-  driver1.setFrequency(915.0); // Median of Hz range
-  driver1.setTxPower(RH_RF95_MAX_POWER, false); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
-  driver1.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048); //Bandwidth of 125, Cognitive Radio 4/5, Spreading Factor 2048
-
-  driver2.setFrequency(915.0);
-  driver2.setTxPower(RH_RF95_MAX_POWER, false);
-  driver2.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
-
-  driver3.setFrequency(915.0);
-  driver3.setTxPower(RH_RF95_MAX_POWER, false);
-  driver3.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
-
-  driver4.setFrequency(915.0);
-  driver4.setTxPower(RH_RF95_MAX_POWER, false);
-  driver4.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
-
+    Serial.println("init 4 failed"); 
+  else {
+    Serial.println("init 4 succeded");
+    driver4.setFrequency(915.0);
+    driver4.setTxPower(RH_RF95_MAX_POWER, false);
+    driver4.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
+  }
+  
   Can.begin();
   Can.setBaudRate(1000000);
   Can.enableMBInterrupts(); // CAN mailboxes are interrupt-driven, meaning it does stuff when a message appears
@@ -345,13 +382,20 @@ void testPacket(){
   }
 }
 void loop() {
-  int timing = ((general[0] | general[1] | general[2] | general[3]) % 1000)/250;
   bool sent_pkt1 = false;
   bool sent_pkt2 = false;
   bool sent_pkt3 = false;
   bool sent_pkt4 = false;
-  getPacket();
 
+  suspension.update();
+  
+  getPacket();
+  int test = random(250 * radio1 + 250 * radio2 + 250 * radio3 + 250 * radio4);
+  general[0] = (test >> 24) & 0xFF;
+  general[1] = (test >> 16) & 0xFF;
+  general[2] = (test >> 8) & 0xFF;
+  general[3] = test & 0xFF;
+  int timing = ((general[0] << 24 | general[1] << 16 | general[2] << 8 | general[3]) % 1000)/250;
   switch (timing){
     case  0:
       if(!radio1){
@@ -363,7 +407,7 @@ void loop() {
           sent_pkt1 = driver1.send(general, sizeof(general));
           break;
         case 1:
-          sent_pkt1 = driver1.send(suspension, sizeof(suspension));
+          sent_pkt1 = driver1.send(suspension.packet, sizeof(suspension.packet));
           break;
         case 2:
           sent_pkt1 = driver1.send(damper, sizeof(damper));
@@ -390,7 +434,7 @@ void loop() {
           sent_pkt2 = driver2.send(general, sizeof(general));
           break;
         case 1:
-          sent_pkt2 = driver2.send(suspension, sizeof(suspension));
+          sent_pkt2 = driver2.send(suspension.packet, sizeof(suspension.packet));
           break;
         case 2:
           sent_pkt2 = driver2.send(damper, sizeof(damper));
@@ -416,7 +460,7 @@ void loop() {
           sent_pkt3 = driver3.send(general, sizeof(general));
           break;
         case 1:
-          sent_pkt3 = driver3.send(suspension, sizeof(suspension));
+          sent_pkt3 = driver3.send(suspension.packet, sizeof(suspension.packet));
           break;
         case 2:
           sent_pkt3 = driver3.send(damper, sizeof(damper));
@@ -440,7 +484,7 @@ void loop() {
         case 0:
           sent_pkt4 = driver4.send(general, sizeof(general));
         case 1:
-          driver4.send(suspension, sizeof(suspension));
+          driver4.send(suspension.packet, sizeof(suspension.packet));
           break;
         case 2:
           sent_pkt4 = driver4.send(damper, sizeof(damper));
@@ -461,90 +505,90 @@ void loop() {
 void getPacket(){
   uint8_t currOffset;
   switch(mode){
-    case 1:
-      currOffset = susOffset * currSus;
-      if ((general[0] | general[1] | general[2] | general[3]) > (suspension[0 + currOffset] | suspension[1 + currOffset] | suspension[2 + currOffset] | suspension[3 + currOffset]) + 576) {
-        if(currSus + 1 == susGroupNum){
-          currSus = 0;
-        } else {
-          currSus ++;
-        }
-        suspension[0 + currOffset] = general[0];
-        suspension[1 + currOffset] = general[1];
-        suspension[2 + currOffset] = general[2];
-        suspension[3 + currOffset] = general[3];
-        currOffset = susOffset * currSus;
-        suspension[0 + currOffset] = general[0];
-        suspension[1 + currOffset] = general[1];
-        suspension[2 + currOffset] = general[2];
-        suspension[3 + currOffset] = general[3];
-      }
-      suspension[4 + currOffset] = general[4];
-      suspension[5 + currOffset] = general[5];
-      suspension[6 + currOffset] = general[6];
-      suspension[7 + currOffset] = general[7];
-      suspension[8 + currOffset] = general[8];
-      suspension[9 + currOffset] = general[9];
-      suspension[10 + currOffset] = general[10];
-      suspension[11 + currOffset] = general[11];
-      suspension[12 + currOffset] = general[12];
-      suspension[13 + currOffset] = general[13];
-      suspension[14 + currOffset] = general[14];
-      suspension[15 + currOffset] = general[15];
-      suspension[16 + currOffset] = general[16];
-      suspension[17 + currOffset] = general[17];
-      suspension[18 + currOffset] = general[18];
-      suspension[19 + currOffset] = general[19];
-      suspension[20 + currOffset] = general[20];
-      suspension[21 + currOffset] = general[21];
-      suspension[22 + currOffset] = general[22];
-      suspension[23 + currOffset] = general[23];
-      suspension[24 + currOffset] = general[24];
-      suspension[25 + currOffset] = general[25];
-      suspension[26 + currOffset] = general[26];
-      suspension[27 + currOffset] = general[27];
-      suspension[28 + currOffset] = general[28];
-      suspension[29 + currOffset] = general[29];
+    // case 1:
+    //   currOffset = susOffset * currSus;
+    //   if ((general[0] | general[1] | general[2] | general[3]) > (suspension[0 + currOffset] | suspension[1 + currOffset] | suspension[2 + currOffset] | suspension[3 + currOffset]) + 576) {
+    //     if(currSus + 1 == susGroupNum){
+    //       currSus = 0;
+    //     } else {
+    //       currSus ++;
+    //     }
+    //     suspension[0 + currOffset] = general[0];
+    //     suspension[1 + currOffset] = general[1];
+    //     suspension[2 + currOffset] = general[2];
+    //     suspension[3 + currOffset] = general[3];
+    //     currOffset = susOffset * currSus;
+    //     suspension[0 + currOffset] = general[0];
+    //     suspension[1 + currOffset] = general[1];
+    //     suspension[2 + currOffset] = general[2];
+    //     suspension[3 + currOffset] = general[3];
+    //   }
+    //   suspension[4 + currOffset] = general[4];
+    //   suspension[5 + currOffset] = general[5];
+    //   suspension[6 + currOffset] = general[6];
+    //   suspension[7 + currOffset] = general[7];
+    //   suspension[8 + currOffset] = general[8];
+    //   suspension[9 + currOffset] = general[9];
+    //   suspension[10 + currOffset] = general[10];
+    //   suspension[11 + currOffset] = general[11];
+    //   suspension[12 + currOffset] = general[12];
+    //   suspension[13 + currOffset] = general[13];
+    //   suspension[14 + currOffset] = general[14];
+    //   suspension[15 + currOffset] = general[15];
+    //   suspension[16 + currOffset] = general[16];
+    //   suspension[17 + currOffset] = general[17];
+    //   suspension[18 + currOffset] = general[18];
+    //   suspension[19 + currOffset] = general[19];
+    //   suspension[20 + currOffset] = general[20];
+    //   suspension[21 + currOffset] = general[21];
+    //   suspension[22 + currOffset] = general[22];
+    //   suspension[23 + currOffset] = general[23];
+    //   suspension[24 + currOffset] = general[24];
+    //   suspension[25 + currOffset] = general[25];
+    //   suspension[26 + currOffset] = general[26];
+    //   suspension[27 + currOffset] = general[27];
+    //   suspension[28 + currOffset] = general[28];
+    //   suspension[29 + currOffset] = general[29];
 
-      suspension[30 + currOffset] = general[34];
-      suspension[31 + currOffset] = general[35];
+    //   suspension[30 + currOffset] = general[34];
+    //   suspension[31 + currOffset] = general[35];
 
-      suspension[32 + currOffset] = general[40];
-      suspension[33 + currOffset] = general[41];
+    //   suspension[32 + currOffset] = general[40];
+    //   suspension[33 + currOffset] = general[41];
 
-      suspension[34 + currOffset] = general[46];
-      suspension[35 + currOffset] = general[47];
+    //   suspension[34 + currOffset] = general[46];
+    //   suspension[35 + currOffset] = general[47];
 
-      suspension[36 + currOffset] = general[52];
-      suspension[37 + currOffset] = general[53];
-      suspension[38 + currOffset] = general[54];
-      suspension[39 + currOffset] = general[55];
-      suspension[40 + currOffset] = general[56];
-      suspension[41 + currOffset] = general[57];
-      suspension[42 + currOffset] = general[58];
-      suspension[43 + currOffset] = general[59];
-      suspension[44 + currOffset] = general[60];
-      suspension[45 + currOffset] = general[61];
-      suspension[46 + currOffset] = general[62];
-      suspension[47 + currOffset] = general[63];
-      suspension[48 + currOffset] = general[64];
-      suspension[49 + currOffset] = general[65];
-      suspension[50 + currOffset] = general[66];
-      suspension[51 + currOffset] = general[67];
-      suspension[52 + currOffset] = general[68];
-      suspension[53 + currOffset] = general[69];
-      suspension[54 + currOffset] = general[70];
+    //   suspension[36 + currOffset] = general[52];
+    //   suspension[37 + currOffset] = general[53];
+    //   suspension[38 + currOffset] = general[54];
+    //   suspension[39 + currOffset] = general[55];
+    //   suspension[40 + currOffset] = general[56];
+    //   suspension[41 + currOffset] = general[57];
+    //   suspension[42 + currOffset] = general[58];
+    //   suspension[43 + currOffset] = general[59];
+    //   suspension[44 + currOffset] = general[60];
+    //   suspension[45 + currOffset] = general[61];
+    //   suspension[46 + currOffset] = general[62];
+    //   suspension[47 + currOffset] = general[63];
+    //   suspension[48 + currOffset] = general[64];
+    //   suspension[49 + currOffset] = general[65];
+    //   suspension[50 + currOffset] = general[66];
+    //   suspension[51 + currOffset] = general[67];
+    //   suspension[52 + currOffset] = general[68];
+    //   suspension[53 + currOffset] = general[69];
+    //   suspension[54 + currOffset] = general[70];
 
-      suspension[55 + currOffset] = general[79];
-      suspension[56 + currOffset] = general[80];
-      suspension[57 + currOffset] = general[81];
-      suspension[58 + currOffset] = general[82];
-      suspension[59 + currOffset] = general[83];
-      suspension[60 + currOffset] = general[84];
-      suspension[61 + currOffset] = general[85];
-      suspension[62 + currOffset] = general[86];
-      suspension[62 + currOffset] = general[87];
-      break;
+    //   suspension[55 + currOffset] = general[79];
+    //   suspension[56 + currOffset] = general[80];
+    //   suspension[57 + currOffset] = general[81];
+    //   suspension[58 + currOffset] = general[82];
+    //   suspension[59 + currOffset] = general[83];
+    //   suspension[60 + currOffset] = general[84];
+    //   suspension[61 + currOffset] = general[85];
+    //   suspension[62 + currOffset] = general[86];
+    //   suspension[62 + currOffset] = general[87];
+    //   break;
     case 2:
       currOffset = damperOffset * currDamp;
       if ((general[0] | general[1] | general[2] | general[3]) > ( damper[0 + currOffset] | damper[1 + currOffset] | damper[2 + currOffset] | damper[3 + currOffset]) + 981) {

@@ -16,17 +16,27 @@
 
 #define testing true
 
+#define mode 0
+
+bool radio1 = false;
+bool radio2 = false;
+bool radio3 = false;
+bool radio4 = false;
+
 //Declaring radio and buffer vars
 RH_RF95 driver1(CS0, G00);
 RH_RF95 driver2(CS1, G01);
-uint8_t pkt[76];
+RH_RF95 driver3(CS2, G02);
+RH_RF95 driver4(CS3, G03);
+uint8_t pkt[251];
 uint8_t length = sizeof(pkt);
-bool read;
+
+bool read1;
+bool read2;
+bool read3;
+bool read4;
 
 //Declare functions
-// void imuRead();
-// void wheelRead();
-// void dataLogRead();
 void testRead();
 void canRead();
 
@@ -41,38 +51,101 @@ unsigned long BAUD = 9600;
 
 void setup(){
   Serial.begin(BAUD);
+
   while(!Serial);
-  driver1.init();
-  if (!driver1.init())
-    Serial.println("driver 1 failed"); 
-  else
-    Serial.println("driver 1 succeded");
 
-  driver2.init();
-  if (!driver2.init())
-    Serial.println("driver 2 failed"); 
-  else
-    Serial.println("driver 2 succeded");
+  radio1 = driver1.init();
+  if (!radio1)
+    Serial.println("init 1 failed"); 
+  else{
+    Serial.println("init 1 succeded");
+    driver1.setFrequency(915.0); // Median of Hz range
+    driver1.setTxPower(23, false); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
+    driver1.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048); //Bandwidth of 125, Cognitive Radio 4/5, Spreading Factor 2048
+    driver1.setModeRx();
+  }
+  
+  radio2 = driver2.init();
+  if (!radio2)
+    Serial.println("init 2 failed"); 
+  else{
+    Serial.println("init 2 succeded");
+    driver2.setFrequency(915.0);
+    driver2.setTxPower(RH_RF95_MAX_POWER, false);
+    driver2.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
+  }
 
-  driver1.setFrequency(915.0); // Median of Hz range
-  driver1.setTxPower(23, false); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
-  driver1.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048); //Bandwidth of 125, Cognitive Radio 4/5, Spreading Factor 2048
-  driver1.setModeRx();
+  radio3 = driver3.init();
+  if (!radio3)
+    Serial.println("init 3 failed"); 
+  else{
+    Serial.println("init 3 succeded");
+    driver3.setFrequency(915.0);
+    driver3.setTxPower(RH_RF95_MAX_POWER, false);
+    driver3.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
+  }
+
+  radio4 = driver4.init();
+  if (!radio4)
+    Serial.println("init 4 failed"); 
+  else{
+    Serial.println("init 4 succeded");
+    driver4.setFrequency(915.0);
+    driver4.setTxPower(RH_RF95_MAX_POWER, false);
+    driver4.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
+  }  
 }
 
 void loop() {
-  if(driver1.available()){
-    read = driver1.recv(pkt, &length);
+  read1 = false;
+  read2 = false;
+  read3 = false;
+  read4 = false;
+  
+  if(driver1.available() && radio1){
+    read1 = driver1.recv(pkt, &length);
     if (testing){
+      Serial.print("Driver1: ");
       testRead();
     } else {
       canRead();
     }
     driver1.waitAvailableTimeout(INTERVAL2);
-  } else {
-    Serial.println("Sender not available :(");
-    delay(INTERVAL1);
+  } else if(driver2.available() && radio2){
+    read2 = driver2.recv(pkt, &length);
+    if (testing){
+      Serial.print("Driver2: ");
+      testRead();
+    } else {
+      canRead();
+    }
+    driver2.waitAvailableTimeout(INTERVAL2);
+  } else if(driver3.available() && radio3){
+    read3 = driver3.recv(pkt, &length);
+    if (testing){
+      Serial.print("Driver3: ");
+      testRead();
+    } else {
+      canRead();
+    }
+    driver3.waitAvailableTimeout(INTERVAL2);
+  } else if(driver4.available() && radio4){
+    read4 = driver4.recv(pkt, &length);
+    if (testing){
+      Serial.print("Driver4: ");
+      testRead();
+    } else {
+      canRead();
+    }
+    driver4.waitAvailableTimeout(INTERVAL2);
   }
+  if (testing){
+    Serial.println("radio 1 init: " + String(radio1) + "\tradio 1 recive: " + String(read1));
+    Serial.println("radio 2 init: " + String(radio2) + "\tradio 2 recive: " + String(read2));
+    Serial.println("radio 3 init: " + String(radio3) + "\tradio 3 recive: " + String(read3));
+    Serial.println("radio 4 init: " + String(radio4) + "\tradio 4 recive: " + String(read4));
+  }
+  //Serial.println("Reciver 3 not available :(");
 }
 
 
