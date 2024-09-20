@@ -5,6 +5,8 @@
 #include <iostream>
 #include <chrono>
 
+using namespace std;
+
 #define CS0 38
 #define G00 21
 
@@ -41,8 +43,8 @@ class sus {
     uint8_t offset = 63;
     uint8_t groupNum = 2;
     uint8_t indexies = 6;
-    std::tuple<uint8_t,uint8_t> general_indexies[6] = {std::tuple <uint8_t, uint8_t> (4,29), std::tuple <uint8_t, uint8_t> (34,35), std::tuple <uint8_t, uint8_t> (40,41), std::tuple <uint8_t, uint8_t> (46,47), std::tuple <uint8_t, uint8_t> (52,70), std::tuple <uint8_t, uint8_t> (79,87)};
-    std::tuple<uint8_t, uint8_t> sus_indexies[6] = {std::tuple <uint8_t, uint8_t> (4,29), std::tuple <uint8_t, uint8_t> (30,31), std::tuple <uint8_t, uint8_t> (32,33), std::tuple <uint8_t, uint8_t> (34,35), std::tuple <uint8_t, uint8_t> (36,54), std::tuple <uint8_t, uint8_t> (55,62)};
+    tuple<uint8_t,uint8_t> general_indexies[6] = {tuple <uint8_t, uint8_t> (4,29), tuple <uint8_t, uint8_t> (34,35), tuple <uint8_t, uint8_t> (40,41), tuple <uint8_t, uint8_t> (46,47), tuple <uint8_t, uint8_t> (52,70), tuple <uint8_t, uint8_t> (79,87)};
+    tuple<uint8_t, uint8_t> sus_indexies[6] = {tuple <uint8_t, uint8_t> (4,29), tuple <uint8_t, uint8_t> (30,31), tuple <uint8_t, uint8_t> (32,33), tuple <uint8_t, uint8_t> (34,35), tuple <uint8_t, uint8_t> (36,54), tuple <uint8_t, uint8_t> (55,62)};
 
   
   void update(){
@@ -58,8 +60,8 @@ class sus {
       this -> currOffset = offset * currGroup;
     }
     for(uint8_t sections = 0; sections < indexies; sections++){
-      for(uint8_t packet_idx = std::get<0>(general_indexies[sections]); packet_idx <= std::get<1>(general_indexies[sections]); packet_idx++){
-        for(uint8_t general_idx = std::get<0> (general_indexies[sections]); general_idx <= std::get<1>(general_indexies[sections]); general_idx++){
+      for(uint8_t packet_idx = get<0>(general_indexies[sections]); packet_idx <= get<1>(general_indexies[sections]); packet_idx++){
+        for(uint8_t general_idx = get<0> (general_indexies[sections]); general_idx <= get<1>(general_indexies[sections]); general_idx++){
           this -> packet[packet_idx + currOffset] = general[general_idx];
         }
       }
