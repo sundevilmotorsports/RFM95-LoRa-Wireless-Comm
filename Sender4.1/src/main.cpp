@@ -21,7 +21,17 @@
 
 #define TESTING false
 
-uint8_t mode = 0;
+uint8_t mode = 1;
+
+//Declare packets
+//Max length 251 (RH_RF95_MAX_MESSAGE_LEN), longer the message the longer send time
+//Length Determined by offset (packet size) * number of groups being sent
+uint8_t general[90];
+//uint8_t suspension[126];
+uint8_t damper[234];
+uint8_t drive[74];
+uint8_t slide[150];
+
 class sus {
   private:
     uint8_t currGroup = 0;
@@ -85,14 +95,6 @@ bool radio1 = false;
 bool radio2 = false;
 bool radio3 = false;
 bool radio4 = false;
-//Declare packets
-//Max length 251 (RH_RF95_MAX_MESSAGE_LEN), longer the message the longer send time
-//Length Determined by offset (packet size) * number of groups being sent
-uint8_t general[90];
-//uint8_t suspension[126];
-uint8_t damper[234];
-uint8_t drive[74];
-uint8_t slide[150];
 
 //indexes for general: !!!NOT UPDATED!!!
   //imu starts at 4
@@ -390,6 +392,7 @@ void loop() {
   suspension.update();
   
   getPacket();
+
   int test = random(250 * radio1 + 250 * radio2 + 250 * radio3 + 250 * radio4);
   general[0] = (test >> 24) & 0xFF;
   general[1] = (test >> 16) & 0xFF;
