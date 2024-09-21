@@ -30,46 +30,71 @@ uint8_t mode = 1;
 //Length Determined by offset (packet size) * number of groups being sent
 uint8_t general[90];
 //uint8_t suspension[126];
-uint8_t damper[234];
-uint8_t drive[74];
-uint8_t slide[150];
+//uint8_t damper[234];
+//uint8_t drive[74];
+//uint8_t slide[150];
 
-class sus {
+class packetMode {
   private:
     uint8_t currGroup = 0;
     uint8_t currOffset = 0;
+    uint8_t latency;
+    uint8_t *general_indexies;
   public:
-    uint8_t packet[126];
-    uint8_t offset = 63;
-    uint8_t groupNum = 2;
-    uint8_t indexies = 6;
-    tuple<uint8_t,uint8_t> general_indexies[6] = {tuple <uint8_t, uint8_t> (4,29), tuple <uint8_t, uint8_t> (34,35), tuple <uint8_t, uint8_t> (40,41), tuple <uint8_t, uint8_t> (46,47), tuple <uint8_t, uint8_t> (52,70), tuple <uint8_t, uint8_t> (79,87)};
-    tuple<uint8_t, uint8_t> sus_indexies[6] = {tuple <uint8_t, uint8_t> (4,29), tuple <uint8_t, uint8_t> (30,31), tuple <uint8_t, uint8_t> (32,33), tuple <uint8_t, uint8_t> (34,35), tuple <uint8_t, uint8_t> (36,54), tuple <uint8_t, uint8_t> (55,62)};
-
-  
-  void update(){
-    if ((general[0] << 24 | general[1] << 16 | general[2] << 8 | general[3]) > (packet[0 + currOffset] << 24 | packet[1 + currOffset] << 16 | packet[2 + currOffset] << 8 | packet[3 + currOffset]) + 576) {
+    uint8_t indexies;
+    uint8_t groupNum;
+    uint8_t offset;
+    uint8_t *packet;
+    packetMode(uint8_t offset, uint8_t groupNum, uint8_t latency,uint8_t *general_indexies, uint8_t indexies){
+      this->offset = offset;
+      this->groupNum = groupNum;
+      this->indexies = indexies;
+      this->latency = latency;
+      this->general_indexies = general_indexies;
+      this->packet = new uint8_t[offset * groupNum];
+      };
+  void update (){
+    if ((general[0] << 24 | general[1] << 16 | general[2] << 8 | general[3]) > (packet[0 + currOffset] << 24 | packet[1 + currOffset] << 16 | packet[2 + currOffset] << 8 | packet[3 + currOffset]) + this->latency) {
       if (currGroup + 1 == groupNum){
         this -> currGroup = 0;
       } else {
         this -> currGroup ++;
       }
+      this -> currOffset = offset * currGroup;
       for(int i = 0; i < 4; i++){
         this -> packet[i + currOffset] = general[i];
       }
-      this -> currOffset = offset * currGroup;
     }
-    for(uint8_t sections = 0; sections < indexies; sections++){
-      for(uint8_t packet_idx = get<0>(general_indexies[sections]); packet_idx <= get<1>(general_indexies[sections]); packet_idx++){
-        for(uint8_t general_idx = get<0> (general_indexies[sections]); general_idx <= get<1>(general_indexies[sections]); general_idx++){
-          this -> packet[packet_idx + currOffset] = general[general_idx];
-        }
+    int index = currOffset + 4;
+    for(uint8_t group = 0; group < indexies; group += 2){
+      for(uint8_t general_idx = general_indexies[group]; general_idx <= general_indexies[group + 1]; general_idx++){
+        Serial.println("packet value" + String(packet[index]));
+        this->packet[index] = general[general_idx];
+        index++;
+        Serial.println("Group: " + String(group));
+        //Serial.println("general value" + String(general[general_idx]));
       }
     }
+    Serial.println("Index: " + String(index));
+  }
+  void print_packet(){
+    Serial.print("packet: " + String(this->packet[0]));
+    for(uint8_t i = 1; i < this->groupNum * this->offset; i++){
+      Serial.print(", " + String(packet[i]));
+    }
+    Serial.println();
   }
 };
 
-sus suspension = sus();
+uint8_t susIndexies[12] = {4,29, 34,35, 40,41, 46,47, 52,70, 79,86};
+uint8_t dampIndexies[6] = {4,15, 28,29, 79,86};
+uint8_t driveIndexies[12] = {4,11, 28,29, 40,41, 46,47, 52,62, 79,86};
+uint8_t slideIndexies[14] = {4,11, 28,29, 34,35, 40,41, 46,47, 52,53, 55,62};
+
+packetMode suspension = packetMode(uint8_t(63), uint8_t(2), uint8_t(576), susIndexies, uint8_t(sizeof(susIndexies)));
+packetMode damper = packetMode(uint8_t(26), uint8_t(9), uint8_t(981), dampIndexies, uint8_t(sizeof(dampIndexies)));
+packetMode drive = packetMode(uint8_t(37), uint8_t(2), uint8_t(381), driveIndexies, uint8_t(sizeof(driveIndexies)));
+packetMode slide = packetMode(uint8_t(30), uint8_t(5), uint8_t(666), slideIndexies, uint8_t(sizeof(slideIndexies)));
 
 //Declaring radio and can
 RH_RF95 driver1(CS0, G00);
@@ -141,7 +166,6 @@ int daqCurrentDraw = -1;
 
 // Declare functions
 void canSniff(const CAN_message_t &msg);
-void getPacket();
 
 //Baud rate, don't set too high or risk data loss
 unsigned long BAUD = 9600;
@@ -150,7 +174,6 @@ void setup() {
   pinMode(SCK, OUTPUT);
 
   Serial.begin(BAUD); //Set Baud rate, don't set too high or risk data loss - might be unused for teensy needs testing
-
   radio1 = driver1.init();
   if (!radio1)
     Serial.println("init 1 failed"); 
@@ -385,15 +408,22 @@ void testPacket(){
                   + "\nint,\t" + String(intTest));
   }
 }
+int testing = 0;
 void loop() {
+  //throw invalid_argument( "received negative value");
+  testing++;
+
   bool sent_pkt1 = false;
   bool sent_pkt2 = false;
   bool sent_pkt3 = false;
   bool sent_pkt4 = false;
-
-  suspension.update();
   
-  getPacket();
+  suspension.update();
+  damper.update();
+  drive.update();
+  slide.update();
+  //Serial.println("anti hang tech " + String(testing));
+  suspension.print_packet();
 
   int test = random(250 * radio1 + 250 * radio2 + 250 * radio3 + 250 * radio4);
   general[0] = (test >> 24) & 0xFF;
@@ -412,16 +442,16 @@ void loop() {
           sent_pkt1 = driver1.send(general, sizeof(general));
           break;
         case 1:
-          sent_pkt1 = driver1.send(suspension.packet, sizeof(suspension.packet));
+          sent_pkt1 = driver1.send(suspension.packet, suspension.groupNum * suspension.offset);
           break;
         case 2:
-          sent_pkt1 = driver1.send(damper, sizeof(damper));
+          sent_pkt1 = driver1.send(damper.packet, damper.groupNum * damper.offset);
           break;
         case 3:
-          sent_pkt1 = driver1.send(drive, sizeof(drive));
+          sent_pkt1 = driver1.send(drive.packet, drive.groupNum * drive.offset);
           break;
         case 4:
-          sent_pkt1 = driver1.send(slide, sizeof(slide));
+          sent_pkt1 = driver1.send(slide.packet, slide.groupNum * slide.offset);
           break;
       }
       if (Serial){
@@ -439,16 +469,16 @@ void loop() {
           sent_pkt2 = driver2.send(general, sizeof(general));
           break;
         case 1:
-          sent_pkt2 = driver2.send(suspension.packet, sizeof(suspension.packet));
+          sent_pkt2 = driver2.send(suspension.packet, suspension.groupNum * suspension.offset);
           break;
         case 2:
-          sent_pkt2 = driver2.send(damper, sizeof(damper));
+          sent_pkt2 = driver2.send(damper.packet, damper.groupNum * damper.offset);
           break;
         case 3:
-          sent_pkt2 = driver2.send(drive, sizeof(drive));
+          sent_pkt2 = driver2.send(drive.packet, drive.groupNum * drive.offset);
           break;
         case 4:
-          sent_pkt2 = driver2.send(slide, sizeof(slide));
+          sent_pkt2 = driver2.send(slide.packet, slide.groupNum * slide.offset);
           break;         
       }
       if (Serial){
@@ -465,16 +495,16 @@ void loop() {
           sent_pkt3 = driver3.send(general, sizeof(general));
           break;
         case 1:
-          sent_pkt3 = driver3.send(suspension.packet, sizeof(suspension.packet));
+          sent_pkt3 = driver3.send(suspension.packet, suspension.groupNum * suspension.offset);
           break;
         case 2:
-          sent_pkt3 = driver3.send(damper, sizeof(damper));
+          sent_pkt3 = driver3.send(damper.packet, damper.groupNum * damper.offset);
           break;
         case 3:
-          sent_pkt3 = driver3.send(drive, sizeof(drive));
+          sent_pkt3 = driver3.send(drive.packet, drive.groupNum * drive.offset);
           break;
         case 4:
-          sent_pkt3 = driver3.send(slide, sizeof(slide));
+          sent_pkt3 = driver3.send(slide.packet, slide.groupNum * slide.offset);
       }
       if (Serial){
         Serial.println("Sent pkt: " + String(sent_pkt3 * 3) + "\tmode: " + String(mode));
@@ -489,260 +519,20 @@ void loop() {
         case 0:
           sent_pkt4 = driver4.send(general, sizeof(general));
         case 1:
-          driver4.send(suspension.packet, sizeof(suspension.packet));
+          driver4.send(suspension.packet, suspension.groupNum * suspension.offset);
           break;
         case 2:
-          sent_pkt4 = driver4.send(damper, sizeof(damper));
+          sent_pkt4 = driver4.send(damper.packet, damper.groupNum * damper.offset);
           break;
         case 3:
-          sent_pkt4 = driver4.send(drive, sizeof(drive));
+          sent_pkt4 = driver4.send(drive.packet, drive.groupNum * drive.offset);
           break;
         case 4:
-          sent_pkt4 = driver4.send(slide, sizeof(slide));
+          sent_pkt4 = driver4.send(slide.packet, slide.groupNum * slide.offset);
       }
       if (Serial){
         Serial.println("Sent pkt: " + String(sent_pkt4 * 4) + "\tmode: " + String(mode));
       }
-      break;
-  }
-}
-
-void getPacket(){
-  uint8_t currOffset;
-  switch(mode){
-    // case 1:
-    //   currOffset = susOffset * currSus;
-    //   if ((general[0] | general[1] | general[2] | general[3]) > (suspension[0 + currOffset] | suspension[1 + currOffset] | suspension[2 + currOffset] | suspension[3 + currOffset]) + 576) {
-    //     if(currSus + 1 == susGroupNum){
-    //       currSus = 0;
-    //     } else {
-    //       currSus ++;
-    //     }
-    //     suspension[0 + currOffset] = general[0];
-    //     suspension[1 + currOffset] = general[1];
-    //     suspension[2 + currOffset] = general[2];
-    //     suspension[3 + currOffset] = general[3];
-    //     currOffset = susOffset * currSus;
-    //     suspension[0 + currOffset] = general[0];
-    //     suspension[1 + currOffset] = general[1];
-    //     suspension[2 + currOffset] = general[2];
-    //     suspension[3 + currOffset] = general[3];
-    //   }
-    //   suspension[4 + currOffset] = general[4];
-    //   suspension[5 + currOffset] = general[5];
-    //   suspension[6 + currOffset] = general[6];
-    //   suspension[7 + currOffset] = general[7];
-    //   suspension[8 + currOffset] = general[8];
-    //   suspension[9 + currOffset] = general[9];
-    //   suspension[10 + currOffset] = general[10];
-    //   suspension[11 + currOffset] = general[11];
-    //   suspension[12 + currOffset] = general[12];
-    //   suspension[13 + currOffset] = general[13];
-    //   suspension[14 + currOffset] = general[14];
-    //   suspension[15 + currOffset] = general[15];
-    //   suspension[16 + currOffset] = general[16];
-    //   suspension[17 + currOffset] = general[17];
-    //   suspension[18 + currOffset] = general[18];
-    //   suspension[19 + currOffset] = general[19];
-    //   suspension[20 + currOffset] = general[20];
-    //   suspension[21 + currOffset] = general[21];
-    //   suspension[22 + currOffset] = general[22];
-    //   suspension[23 + currOffset] = general[23];
-    //   suspension[24 + currOffset] = general[24];
-    //   suspension[25 + currOffset] = general[25];
-    //   suspension[26 + currOffset] = general[26];
-    //   suspension[27 + currOffset] = general[27];
-    //   suspension[28 + currOffset] = general[28];
-    //   suspension[29 + currOffset] = general[29];
-
-    //   suspension[30 + currOffset] = general[34];
-    //   suspension[31 + currOffset] = general[35];
-
-    //   suspension[32 + currOffset] = general[40];
-    //   suspension[33 + currOffset] = general[41];
-
-    //   suspension[34 + currOffset] = general[46];
-    //   suspension[35 + currOffset] = general[47];
-
-    //   suspension[36 + currOffset] = general[52];
-    //   suspension[37 + currOffset] = general[53];
-    //   suspension[38 + currOffset] = general[54];
-    //   suspension[39 + currOffset] = general[55];
-    //   suspension[40 + currOffset] = general[56];
-    //   suspension[41 + currOffset] = general[57];
-    //   suspension[42 + currOffset] = general[58];
-    //   suspension[43 + currOffset] = general[59];
-    //   suspension[44 + currOffset] = general[60];
-    //   suspension[45 + currOffset] = general[61];
-    //   suspension[46 + currOffset] = general[62];
-    //   suspension[47 + currOffset] = general[63];
-    //   suspension[48 + currOffset] = general[64];
-    //   suspension[49 + currOffset] = general[65];
-    //   suspension[50 + currOffset] = general[66];
-    //   suspension[51 + currOffset] = general[67];
-    //   suspension[52 + currOffset] = general[68];
-    //   suspension[53 + currOffset] = general[69];
-    //   suspension[54 + currOffset] = general[70];
-
-    //   suspension[55 + currOffset] = general[79];
-    //   suspension[56 + currOffset] = general[80];
-    //   suspension[57 + currOffset] = general[81];
-    //   suspension[58 + currOffset] = general[82];
-    //   suspension[59 + currOffset] = general[83];
-    //   suspension[60 + currOffset] = general[84];
-    //   suspension[61 + currOffset] = general[85];
-    //   suspension[62 + currOffset] = general[86];
-    //   suspension[62 + currOffset] = general[87];
-    //   break;
-    case 2:
-      currOffset = damperOffset * currDamp;
-      if ((general[0] | general[1] | general[2] | general[3]) > ( damper[0 + currOffset] | damper[1 + currOffset] | damper[2 + currOffset] | damper[3 + currOffset]) + 981) {
-        if(currDamp + 1 == damperGroupNum){
-          currDamp = 0;
-        } else {
-          currDamp ++;
-        }
-        damper[0 + currOffset] = general[0];
-        damper[1 + currOffset] = general[1];
-        damper[2 + currOffset] = general[2];
-        damper[3 + currOffset] = general[3];
-        currOffset = damperOffset * currDamp;
-        damper[0 + currOffset] = general[0];
-        damper[1 + currOffset] = general[1];
-        damper[2 + currOffset] = general[2];
-        damper[3 + currOffset] = general[3];
-      }
-      damper[4 + currOffset] = general[4];
-      damper[5 + currOffset] = general[5];
-      damper[6 + currOffset] = general[6];
-      damper[7 + currOffset] = general[7];
-      damper[8 + currOffset] = general[8];
-      damper[9 + currOffset] = general[9];
-      damper[10 + currOffset] = general[10];
-      damper[11 + currOffset] = general[11];
-      damper[12 + currOffset] = general[12];
-      damper[13 + currOffset] = general[13];
-      damper[14 + currOffset] = general[14];
-      damper[15 + currOffset] = general[15];
-
-      damper[16 + currOffset] = general[28];
-      damper[17 + currOffset] = general[29];
-
-      damper[18 + currOffset] = general[79];
-      damper[19 + currOffset] = general[80];
-      damper[20 + currOffset] = general[81];
-      damper[21 + currOffset] = general[82];
-      damper[22 + currOffset] = general[83];
-      damper[23 + currOffset] = general[84];
-      damper[24 + currOffset] = general[85];
-      damper[25 + currOffset] = general[86];
-    case 3:
-      currOffset = driveOffset * currDrive;
-      if ((general[0] | general[1] | general[2] | general[3]) > ( drive[0 + currOffset] | drive[1 + currOffset] | drive[2 + currOffset] | drive[3 + currOffset]) + 381) {
-        if(currDrive + 1 == driveGroupNum){
-          currDrive = 0;
-        } else {
-          currDrive ++;
-        }
-        drive[0 + currOffset] = general[0];
-        drive[1 + currOffset] = general[1];
-        drive[2 + currOffset] = general[2];
-        drive[3 + currOffset] = general[3];
-        currOffset = driveOffset * currDrive;
-        drive[0 + currOffset] = general[0];
-        drive[1 + currOffset] = general[1];
-        drive[2 + currOffset] = general[2];
-        drive[3 + currOffset] = general[3];
-      }
-      drive[4 + currOffset] = general[4];
-      drive[5 + currOffset] = general[5];
-      drive[6 + currOffset] = general[6];
-      drive[7 + currOffset] = general[7];
-      drive[8 + currOffset] = general[8];
-      drive[9 + currOffset] = general[9];
-      drive[10 + currOffset] = general[10];
-      drive[11 + currOffset] = general[11];
-
-      drive[12 + currOffset] = general[28];
-      drive[13 + currOffset] = general[29];
-
-      drive[14 + currOffset] = general[40];
-      drive[15 + currOffset] = general[41];
-
-      drive[16 + currOffset] = general[46];
-      drive[17 + currOffset] = general[47];
-
-      drive[18 + currOffset] = general[52];
-      drive[19 + currOffset] = general[53];
-      drive[20 + currOffset] = general[54];
-      drive[21 + currOffset] = general[55];
-      drive[22 + currOffset] = general[56];
-      drive[23 + currOffset] = general[57];
-      drive[24 + currOffset] = general[58];
-      drive[25 + currOffset] = general[59];
-      drive[26 + currOffset] = general[60];
-      drive[27 + currOffset] = general[61];
-      drive[28 + currOffset] = general[62];
-      
-      drive[29 + currOffset] = general[79];
-      drive[30 + currOffset] = general[80];
-      drive[31 + currOffset] = general[81];
-      drive[32 + currOffset] = general[82];
-      drive[33 + currOffset] = general[83];
-      drive[34 + currOffset] = general[84];
-      drive[35 + currOffset] = general[85];
-      drive[36 + currOffset] = general[86];
-    case 4:
-      currOffset = slideOffset * currSlide;
-      if ((general[0] | general[1] | general[2] | general[3]) > ( slide[0 + currOffset] | slide[1 + currOffset] | slide[2 + currOffset] | slide[3 + currOffset]) + 666) {
-        if(currSlide + 1 == slideGroupNum){
-          currSlide = 0;
-        } else {
-          currSlide ++;
-        }
-        slide[0 + currOffset] = general[0];
-        slide[1 + currOffset] = general[1];
-        slide[2 + currOffset] = general[2];
-        slide[3 + currOffset] = general[3];
-        currOffset = slideOffset * currSlide;
-        slide[0 + currOffset] = general[0];
-        slide[1 + currOffset] = general[1];
-        slide[2 + currOffset] = general[2];
-        slide[3 + currOffset] = general[3];
-      }
-      slide[4 + currOffset] = general[4];
-      slide[5 + currOffset] = general[5];
-      slide[6 + currOffset] = general[6];
-      slide[7 + currOffset] = general[7];
-      slide[8 + currOffset] = general[8];
-      slide[9 + currOffset] = general[9];
-      slide[10 + currOffset] = general[10];
-      slide[11 + currOffset] = general[11];
-
-      slide[12 + currOffset] = general[28];
-      slide[13 + currOffset] = general[29];
-
-      slide[14 + currOffset] = general[34];
-      slide[15 + currOffset] = general[35];
-
-      slide[16 + currOffset] = general[40];
-      slide[17 + currOffset] = general[41];
-
-      slide[18 + currOffset] = general[46];
-      slide[19 + currOffset] = general[47];
-
-      slide[20 + currOffset] = general[52];
-      slide[21 + currOffset] = general[53];
-
-      slide[22 + currOffset] = general[55];
-      slide[23 + currOffset] = general[56];
-      slide[24 + currOffset] = general[57];
-      slide[25 + currOffset] = general[58];
-      slide[26 + currOffset] = general[59];
-      slide[27 + currOffset] = general[60];
-      slide[28 + currOffset] = general[61];
-      slide[29 + currOffset] = general[62];
-    default:
       break;
   }
 }
