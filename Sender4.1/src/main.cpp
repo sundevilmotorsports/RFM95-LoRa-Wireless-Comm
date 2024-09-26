@@ -24,6 +24,8 @@ using namespace std;
 #define TESTING false
 
 uint8_t mode = 1;
+int _delay;
+
 
 //Declare packets
 //Max length 251 (RH_RF95_MAX_MESSAGE_LEN), longer the message the longer send time
@@ -38,23 +40,23 @@ class packetMode {
   private:
     uint8_t currGroup = 0;
     uint8_t currOffset = 0;
-    uint8_t latency;
     uint8_t *general_indexies;
   public:
+    uint8_t latency;
     uint8_t indexies;
     uint8_t groupNum;
     uint8_t offset;
-    uint8_t *packet;
+    vector<uint8_t> packet;
     packetMode(uint8_t offset, uint8_t groupNum, uint8_t latency,uint8_t *general_indexies, uint8_t indexies){
       this->offset = offset;
       this->groupNum = groupNum;
       this->indexies = indexies;
       this->latency = latency;
       this->general_indexies = general_indexies;
-      this->packet = new uint8_t[offset * groupNum];
+      this->packet.resize(offset * groupNum);
       };
   void update (){
-    if ((general[0] << 24 | general[1] << 16 | general[2] << 8 | general[3]) > (packet[0 + currOffset] << 24 | packet[1 + currOffset] << 16 | packet[2 + currOffset] << 8 | packet[3 + currOffset]) + this->latency) {
+    if ((general[0] << 24 | general[1] << 16 | general[2] << 8 | general[3]) > (packet[0 + currOffset] << 24 | packet[1 + currOffset] << 16 | packet[2 + currOffset] << 8 | packet[3 + currOffset]) + (this->latency/this->groupNum)) {
       if (currGroup + 1 == groupNum){
         this -> currGroup = 0;
       } else {
@@ -68,14 +70,13 @@ class packetMode {
     int index = currOffset + 4;
     for(uint8_t group = 0; group < indexies; group += 2){
       for(uint8_t general_idx = general_indexies[group]; general_idx <= general_indexies[group + 1]; general_idx++){
-        Serial.println("packet value" + String(packet[index]));
         this->packet[index] = general[general_idx];
         index++;
-        Serial.println("Group: " + String(group));
+        //Serial.println("Group: " + String(group));
         //Serial.println("general value" + String(general[general_idx]));
       }
     }
-    Serial.println("Index: " + String(index));
+    //Serial.println("Index: " + String(index));
   }
   void print_packet(){
     Serial.print("packet: " + String(this->packet[0]));
@@ -171,6 +172,21 @@ void canSniff(const CAN_message_t &msg);
 unsigned long BAUD = 9600;
 
 void setup() {
+  switch (mode){
+  case 0:
+    _delay = 250;
+    break;
+  case 1:
+    _delay = suspension.latency;
+  case 2:
+    _delay = damper.latency;
+  case 3:
+    _delay = drive.latency;
+  case 4:
+    _delay = slide.latency;
+  default:
+    break;
+  }
   pinMode(SCK, OUTPUT);
 
   Serial.begin(BAUD); //Set Baud rate, don't set too high or risk data loss - might be unused for teensy needs testing
@@ -408,11 +424,11 @@ void testPacket(){
                   + "\nint,\t" + String(intTest));
   }
 }
-int testing = 0;
+int radio = 0;
+
 void loop() {
   //throw invalid_argument( "received negative value");
-  testing++;
-
+  
   bool sent_pkt1 = false;
   bool sent_pkt2 = false;
   bool sent_pkt3 = false;
@@ -423,15 +439,8 @@ void loop() {
   drive.update();
   slide.update();
   //Serial.println("anti hang tech " + String(testing));
-  suspension.print_packet();
-
-  int test = random(250 * radio1 + 250 * radio2 + 250 * radio3 + 250 * radio4);
-  general[0] = (test >> 24) & 0xFF;
-  general[1] = (test >> 16) & 0xFF;
-  general[2] = (test >> 8) & 0xFF;
-  general[3] = test & 0xFF;
-  int timing = ((general[0] << 24 | general[1] << 16 | general[2] << 8 | general[3]) % 1000)/250;
-  switch (timing){
+  //damper.print_packet();  
+  switch (radio % 4){
     case  0:
       if(!radio1){
         //Serial.println("Driver 1 unresponsive");
@@ -442,20 +451,20 @@ void loop() {
           sent_pkt1 = driver1.send(general, sizeof(general));
           break;
         case 1:
-          sent_pkt1 = driver1.send(suspension.packet, suspension.groupNum * suspension.offset);
+          sent_pkt1 = driver1.send(suspension.packet.data(), suspension.groupNum * suspension.offset);
           break;
         case 2:
-          sent_pkt1 = driver1.send(damper.packet, damper.groupNum * damper.offset);
+          sent_pkt1 = driver1.send(damper.packet.data(), damper.groupNum * damper.offset);
           break;
         case 3:
-          sent_pkt1 = driver1.send(drive.packet, drive.groupNum * drive.offset);
+          sent_pkt1 = driver1.send(drive.packet.data(), drive.groupNum * drive.offset);
           break;
         case 4:
-          sent_pkt1 = driver1.send(slide.packet, slide.groupNum * slide.offset);
+          sent_pkt1 = driver1.send(slide.packet.data(), slide.groupNum * slide.offset);
           break;
       }
       if (Serial){
-        Serial.println("Sent pkt: " + String(sent_pkt1) + "\tmode: " + String(mode));
+        Serial.println("Sent radio 1: " + String(sent_pkt1) + "\tmode: " + String(mode));
       }
       break;
 
@@ -469,20 +478,20 @@ void loop() {
           sent_pkt2 = driver2.send(general, sizeof(general));
           break;
         case 1:
-          sent_pkt2 = driver2.send(suspension.packet, suspension.groupNum * suspension.offset);
+          sent_pkt2 = driver2.send(suspension.packet.data(), suspension.groupNum * suspension.offset);
           break;
         case 2:
-          sent_pkt2 = driver2.send(damper.packet, damper.groupNum * damper.offset);
+          sent_pkt2 = driver2.send(damper.packet.data(), damper.groupNum * damper.offset);
           break;
         case 3:
-          sent_pkt2 = driver2.send(drive.packet, drive.groupNum * drive.offset);
+          sent_pkt2 = driver2.send(drive.packet.data(), drive.groupNum * drive.offset);
           break;
         case 4:
-          sent_pkt2 = driver2.send(slide.packet, slide.groupNum * slide.offset);
+          sent_pkt2 = driver2.send(slide.packet.data(), slide.groupNum * slide.offset);
           break;         
       }
       if (Serial){
-        Serial.println("Sent pkt: " + String(sent_pkt2 * 2) + "\tmode: " + String(mode));
+        Serial.println("Sent radio 2: " + String(sent_pkt2 * 2) + "\tmode: " + String(mode));
       }
       break;
     case 2:
@@ -495,19 +504,19 @@ void loop() {
           sent_pkt3 = driver3.send(general, sizeof(general));
           break;
         case 1:
-          sent_pkt3 = driver3.send(suspension.packet, suspension.groupNum * suspension.offset);
+          sent_pkt3 = driver3.send(suspension.packet.data(), suspension.groupNum * suspension.offset);
           break;
         case 2:
-          sent_pkt3 = driver3.send(damper.packet, damper.groupNum * damper.offset);
+          sent_pkt3 = driver3.send(damper.packet.data(), damper.groupNum * damper.offset);
           break;
         case 3:
-          sent_pkt3 = driver3.send(drive.packet, drive.groupNum * drive.offset);
+          sent_pkt3 = driver3.send(drive.packet.data(), drive.groupNum * drive.offset);
           break;
         case 4:
-          sent_pkt3 = driver3.send(slide.packet, slide.groupNum * slide.offset);
+          sent_pkt3 = driver3.send(slide.packet.data(), slide.groupNum * slide.offset);
       }
       if (Serial){
-        Serial.println("Sent pkt: " + String(sent_pkt3 * 3) + "\tmode: " + String(mode));
+        Serial.println("Sent radio 3: " + String(sent_pkt3 * 3) + "\tmode: " + String(mode));
       }
       break;
     case 3:
@@ -519,20 +528,24 @@ void loop() {
         case 0:
           sent_pkt4 = driver4.send(general, sizeof(general));
         case 1:
-          driver4.send(suspension.packet, suspension.groupNum * suspension.offset);
+          driver4.send(suspension.packet.data(), suspension.groupNum * suspension.offset);
           break;
         case 2:
-          sent_pkt4 = driver4.send(damper.packet, damper.groupNum * damper.offset);
+          sent_pkt4 = driver4.send(damper.packet.data(), damper.groupNum * damper.offset);
           break;
         case 3:
-          sent_pkt4 = driver4.send(drive.packet, drive.groupNum * drive.offset);
+          sent_pkt4 = driver4.send(drive.packet.data(), drive.groupNum * drive.offset);
           break;
         case 4:
-          sent_pkt4 = driver4.send(slide.packet, slide.groupNum * slide.offset);
+          sent_pkt4 = driver4.send(slide.packet.data(), slide.groupNum * slide.offset);
       }
       if (Serial){
-        Serial.println("Sent pkt: " + String(sent_pkt4 * 4) + "\tmode: " + String(mode));
+        Serial.println("Sent radio 4: " + String(sent_pkt4 * 4) + "\tmode: " + String(mode));
       }
       break;
   }
+  if(radio < 4){
+    delay(_delay);
+  }
+  radio++;
 }
