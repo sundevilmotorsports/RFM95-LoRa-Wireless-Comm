@@ -16,7 +16,7 @@
 
 #define testing false
 
-int mode = 1; // 0 for general, 1 for suspension, 2 for damper, 3 for driver, 4 for slip/slide
+int mode = 2; // 0 for general, 1 for suspension, 2 for damper, 3 for driver, 4 for slip/slide
 
 
 bool radio1 = false;
@@ -152,12 +152,13 @@ void loop() {
 
 
 void packetRead() {
-  Serial.println("Packet read");
+  //Serial.println("Packet read");
   // IMU pkt 4-28, 
   // Wheel Boards 29-6
-  unsigned long timestamp = (unsigned long) pkt[0] << 24 | (unsigned long) pkt[1] << 16 | (unsigned long) pkt[2] << 8 | (unsigned long) pkt[3];
+  
   switch (mode) {
     case 0: {// General
+      unsigned long timestamp = (unsigned long) pkt[0] << 24 | (unsigned long) pkt[1] << 16 | (unsigned long) pkt[2] << 8 | (unsigned long) pkt[3];
       float xAccel = (pkt[4] << 24) | (pkt[5] << 16) | (pkt[6] << 8) | pkt[7]; 
       float yAccel = (pkt[8] << 24) | (pkt[9] << 16) | (pkt[10] << 8) | pkt[11];
       float zAccel = (pkt[12] << 24) | (pkt[13] << 16) | (pkt[14] << 8) | pkt[15];
@@ -221,6 +222,7 @@ void packetRead() {
     case 1: {// Suspension
       // IMU DATA
       for (int offset = 0; offset < 64; offset+=63) {
+        unsigned long timestamp = (unsigned long) pkt[0 + offset] << 24 | (unsigned long) pkt[1 + offset] << 16 | (unsigned long) pkt[2 + offset] << 8 | (unsigned long) pkt[3 + offset];
         float xAccel = (pkt[4 + offset] << 24) | (pkt[5 + offset] << 16) | (pkt[6 + offset] << 8) | pkt[7 + offset]; 
         float yAccel = (pkt[8 + offset] << 24) | (pkt[9 + offset] << 16) | (pkt[10 + offset] << 8) | pkt[11 + offset];
         float zAccel = (pkt[12 + offset] << 24) | (pkt[13 + offset] << 16) | (pkt[14 + offset] << 8) | pkt[15 + offset];
@@ -266,7 +268,9 @@ void packetRead() {
       break;
     }
     case 2: {// Damper
-      for (int offset = 0; offset < 235; offset+=26) {
+      for (int offset = 0; offset < 209; offset+=26) {
+        //Serial.println(offset);
+        unsigned long timestamp = (unsigned long) pkt[0 + offset] << 24 | (unsigned long) pkt[1 + offset] << 16 | (unsigned long) pkt[2 + offset] << 8 | (unsigned long) pkt[3 + offset];
         float xAccel = (pkt[4 + offset] << 24) | (pkt[5 + offset] << 16) | (pkt[6 + offset] << 8) | pkt[7 + offset]; 
         float yAccel = (pkt[8 + offset] << 24) | (pkt[9 + offset] << 16) | (pkt[10 + offset] << 8) | pkt[11 + offset];
         float zAccel = (pkt[12 + offset] << 24) | (pkt[13 + offset] << 16) | (pkt[14 + offset] << 8) | pkt[15 + offset];
@@ -288,7 +292,9 @@ void packetRead() {
       break;
     }
     case 3: {// Driver
-      for (int offset = 0; offset < 75; offset+=37) {
+      for (int offset = 0; offset < 74; offset+=37) {
+        //Serial.println("DRIVER");
+        unsigned long timestamp = (unsigned long) pkt[0 + offset] << 24 | (unsigned long) pkt[1 + offset] << 16 | (unsigned long) pkt[2 + offset] << 8 | (unsigned long) pkt[3 + offset];
         float xAccel = (pkt[4 + offset] << 24) | (pkt[5 + offset] << 16) | (pkt[6 + offset] << 8) | pkt[7 + offset]; 
         float yAccel = (pkt[8 + offset] << 24) | (pkt[9 + offset] << 16) | (pkt[10 + offset] << 8) | pkt[11 + offset];
 
@@ -314,7 +320,7 @@ void packetRead() {
           Serial.println("[Driver]");
         }
 
-        Serial.print("3," + String(timestamp) + ","  + String(xAccel) + "," + String(yAccel) + "," + String(fl_speed) + "," + String(bl_speed) + "," + String(br_speed));
+        Serial.print("3," + String(timestamp) + ","  + String(xAccel) + "," + String(yAccel) + "," + String(fl_speed) + "," + String(bl_speed) + "," + String(br_speed) + ",");
         Serial.print(String(differentialSpeed) + "," + (drsToggle) + "," + String(steeringAngle) + "," + String(throttleInput) + "," + 
           String(frontBrakePressure) + "," + String(rearBrakePressure) + "," + String(fl_shock) + "," + String(fr_shock) + "," + String(bl_shock) + "," + String(br_shock) + "\n");
       }
@@ -322,6 +328,7 @@ void packetRead() {
     }
     case 4: {// Slip/Slide
       for (int offset = 0; offset < 151; offset+=30) {
+        unsigned long timestamp = (unsigned long) pkt[0 + offset] << 24 | (unsigned long) pkt[1 + offset] << 16 | (unsigned long) pkt[2 + offset] << 8 | (unsigned long) pkt[3 + offset];
         float xAccel = (pkt[4 + offset] << 24) | (pkt[5 + offset] << 16) | (pkt[6 + offset] << 8) | pkt[7 + offset]; 
         float yAccel = (pkt[8 + offset] << 24) | (pkt[9 + offset] << 16) | (pkt[10 + offset] << 8) | pkt[11 + offset];
 
