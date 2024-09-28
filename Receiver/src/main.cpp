@@ -16,7 +16,7 @@
 
 #define testing false
 
-int mode = 2; // 0 for general, 1 for suspension, 2 for damper, 3 for driver, 4 for slip/slide
+int mode = 4; // 0 for general, 1 for suspension, 2 for damper, 3 for driver, 4 for slip/slide
 
 
 bool radio1 = false;
@@ -57,10 +57,10 @@ void setup(){
   while(!Serial);
 
   radio1 = driver1.init();
-  if (!radio1)
-    Serial.println("init 1 failed"); 
-  else{
-    Serial.println("init 1 succeded");
+  if (!radio1){
+    //Serial.println("init 1 failed"); 
+  } else {
+    //Serial.println("init 1 succeded");
     driver1.setFrequency(915.0); // Median of Hz range
     driver1.setTxPower(23, false); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
     driver1.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048); //Bandwidth of 125, Cognitive Radio 4/5, Spreading Factor 2048
@@ -68,29 +68,29 @@ void setup(){
   }
   
   radio2 = driver2.init();
-  if (!radio2)
-    Serial.println("init 2 failed"); 
-  else{
-    Serial.println("init 2 succeded");
+  if (!radio2){
+    //Serial.println("init 2 failed"); 
+  } else {
+    //Serial.println("init 2 succeded");
     driver2.setFrequency(915.0);
     driver2.setTxPower(RH_RF95_MAX_POWER, false);
     driver2.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
   }
 
   radio3 = driver3.init();
-  if (!radio3)
-    Serial.println("init 3 failed"); 
-  else{
-    Serial.println("init 3 succeded");
+  if (!radio3) {
+    //Serial.println("init 3 failed"); 
+  } else{
+    //Serial.println("init 3 succeded");
     driver3.setFrequency(915.0);
     driver3.setTxPower(RH_RF95_MAX_POWER, false);
     driver3.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
   }
 
   radio4 = driver4.init();
-  if (!radio4)
-    Serial.println("init 4 failed"); 
-  else{
+  if (!radio4){
+    //Serial.println("init 4 failed"); 
+  } else{
     Serial.println("init 4 succeded");
     driver4.setFrequency(915.0);
     driver4.setTxPower(RH_RF95_MAX_POWER, false);
@@ -208,7 +208,7 @@ void packetRead() {
       }
 
       Serial.print("0," + String(timestamp) + ","  + String(xAccel) + "," + String(yAccel) + "," + String(zAccel) + "," + 
-        String(xGyro)  + "," + String(yGyro)  + "," + String(zGyro)); 
+        String(xGyro)  + "," + String(yGyro)  + "," + String(zGyro) + ","); 
       Serial.print(String(fl_speed) + "," + String(fl_brakeTemp) + "," + String(fl_ambTemp) + "," + 
         String(fr_speed) + "," + String(fr_brakeTemp) + "," + String(fr_ambTemp) + "," + String(bl_speed) + "," + 
         String(bl_brakeTemp) + "," + String(bl_ambTemp) + "," + String(br_speed) + "," + String(br_brakeTemp) + "," + 
@@ -259,7 +259,7 @@ void packetRead() {
         }
 
         Serial.print("1," + String(timestamp) + ","  + String(xAccel) + "," + String(yAccel) + "," + String(zAccel) + "," + 
-          String(xGyro)  + "," + String(yGyro)  + "," + String(zGyro)); 
+          String(xGyro)  + "," + String(yGyro)  + "," + String(zGyro) + ","); 
         Serial.print(String(fl_speed) + "," + String(fr_speed) + "," + String(bl_speed) + "," + String(br_speed) + "," + String(differentialSpeed) +  ",");
         Serial.print(String(drsToggle) + "," + String(steeringAngle) + "," + String(throttleInput) + "," + 
           String(frontBrakePressure) + "," + String(rearBrakePressure) + "," + 

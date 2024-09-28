@@ -56,18 +56,22 @@ class packetMode {
       this->packet.resize(offset * groupNum);
       };
   void update (){
-    if ((general[0] << 24 | general[1] << 16 | general[2] << 8 | general[3]) > (packet[0 + currOffset] << 24 | packet[1 + currOffset] << 16 | packet[2 + currOffset] << 8 | packet[3 + currOffset]) + (this->latency/this->groupNum)) {
+    int tempGroup;
+    if(currGroup - 1 < 0){
+      tempGroup = groupNum - 1;
+    } else {
+      tempGroup = currGroup - 1;
+    }
+    int tempOffset = offset * tempGroup;
+    if ((general[0] << 24 | general[1] << 16 | general[2] << 8 | general[3]) > (packet[0 + tempOffset] << 24 | packet[1 + tempOffset] << 16 | packet[2 + tempOffset] << 8 | packet[3 + tempOffset]) + (this->latency/this->groupNum)) {
       if (currGroup + 1 == groupNum){
         this -> currGroup = 0;
       } else {
         this -> currGroup ++;
       }
       this -> currOffset = offset * currGroup;
-      for(int i = 0; i < 4; i++){
-        this -> packet[i + currOffset] = general[i];
-      }
     }
-    int index = currOffset + 4;
+    int index = currOffset;
     for(uint8_t group = 0; group < indexies; group += 2){
       for(uint8_t general_idx = general_indexies[group]; general_idx <= general_indexies[group + 1]; general_idx++){
         this->packet[index] = general[general_idx];
@@ -87,10 +91,10 @@ class packetMode {
   }
 };
 
-uint8_t susIndexies[12] = {4,29, 34,35, 40,41, 46,47, 52,70, 79,86};
-uint8_t dampIndexies[6] = {4,15, 28,29, 79,86};
-uint8_t driveIndexies[12] = {4,11, 28,29, 40,41, 46,47, 52,62, 79,86};
-uint8_t slideIndexies[14] = {4,11, 28,29, 34,35, 40,41, 46,47, 52,53, 55,62};
+uint8_t susIndexies[12] = {0,29, 34,35, 40,41, 46,47, 52,70, 79,86};
+uint8_t dampIndexies[6] = {0,15, 28,29, 79,86};
+uint8_t driveIndexies[12] = {0,11, 28,29, 40,41, 46,47, 52,62, 79,86};
+uint8_t slideIndexies[14] = {0,11, 28,29, 34,35, 40,41, 46,47, 52,53, 55,62};
 
 packetMode suspension = packetMode(uint8_t(63), uint8_t(2), uint8_t(576), susIndexies, uint8_t(sizeof(susIndexies)));
 packetMode damper = packetMode(uint8_t(26), uint8_t(9), uint8_t(981), dampIndexies, uint8_t(sizeof(dampIndexies)));
@@ -438,8 +442,17 @@ void loop() {
   damper.update();
   drive.update();
   slide.update();
-  //Serial.println("anti hang tech " + String(testing));
-  //damper.print_packet();  
+  
+  int time = millis();
+  general[0] = (time >> 24) & 0xFF;
+  general[1] = (time >> 16) & 0xFF;
+  general[2] = (time >> 8) & 0xFF;
+  general[3] = time & 0xFF;
+
+  // suspension.print_packet();
+  // damper.print_packet();
+  // drive.print_packet();
+  // slide.print_packet();
   switch (radio % 4){
     case  0:
       if(!radio1){
