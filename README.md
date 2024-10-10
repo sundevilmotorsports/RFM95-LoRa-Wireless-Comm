@@ -4,7 +4,7 @@ Sender and Receiver code for the RFM95 LoRa wireless communication.
 ## LoRa Documentation
 [RadioHead](https://www.airspayce.com/mikem/arduino/RadioHead/classRH__RF95.html)
 
-## Heads up
+## Heads Up
 If wanting to use more than 3 radios you have to modify 
 
 lib\RadioHead-1.130\RadioHead\{radio class}.cpp 
@@ -75,7 +75,7 @@ GND ----> GND
 
 ## Pinout for Teensy 4.1 on the breadboard
 -- CS pins can be on any logic pin, currently using pins defined as CS pins by Teensy
--- Chained pins can theoretically go infinitely, just limited by logic pins but [check warning above]([##-Heads-up]) to implement in code
+-- Chained pins can theoretically go infinitely, just limited by logic pins but [check warning above](#heads-up) to implement in code
 
 Teensy ----> LoRa 0 ----> LoRa 1 ----> LoRa 2 ----> LoRa 3
 
