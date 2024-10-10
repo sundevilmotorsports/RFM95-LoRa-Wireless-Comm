@@ -21,20 +21,24 @@ using namespace std;
 
 #define SCK 13
 
-#define TESTING false
+#define TESTING_CAN false
+#define TESTING_RADIOS false
+
+//Modes defined in Radio-Radio
+//mode defs: 0 = general, 1 = suspension, 2 = damper, 3 = driver, 4 = slip/slide
 
 uint8_t mode = 1;
-int _delay;
+uint16_t _delay;
 
 
-//Declare packets
+//Declare packet
 //Max length 251 (RH_RF95_MAX_MESSAGE_LEN), longer the message the longer send time
-//Length Determined by offset (packet size) * number of groups being sent
-uint8_t general[90];
-//uint8_t suspension[126];
-//uint8_t damper[234];
-//uint8_t drive[74];
-//uint8_t slide[150];
+//General is the master packet that is updated then by canSniff then parsed through to update other packets
+  //Testing determened send time was found with ((packet length * 0.015 * number of groupings)+0.414)/number of radios = latency in seconds from start to recive time
+
+uint8_t general[86];
+
+
 
 class packetMode {
   private:
@@ -42,12 +46,12 @@ class packetMode {
     uint8_t currOffset = 0;
     uint8_t *general_indexies;
   public:
-    uint8_t latency;
+    uint16_t latency;
     uint8_t indexies;
     uint8_t groupNum;
     uint8_t offset;
     vector<uint8_t> packet;
-    packetMode(uint8_t offset, uint8_t groupNum, uint8_t latency,uint8_t *general_indexies, uint8_t indexies){
+    packetMode(uint8_t offset, uint8_t groupNum, uint16_t latency,uint8_t *general_indexies, uint8_t indexies){
       this->offset = offset;
       this->groupNum = groupNum;
       this->indexies = indexies;
@@ -55,6 +59,10 @@ class packetMode {
       this->general_indexies = general_indexies;
       this->packet.resize(offset * groupNum);
       };
+
+  //when called, update first compares the previous timestamp to the timestamp stored in general, and if it is over the estimated latency / the number of groups then it beings storing data in the next group
+    //To compare timestamps it grabs there indexies, bit shifts them the appropriate ammount for their data type and performs logical or to get the final number
+  //Next is iterating through all of the indexies in the general packet, odd indexes acting as a start index and even indexes acting as an end index, and then saving them into the coresponding position in the child packet
   void update (){
     int tempGroup;
     if(currGroup - 1 < 0){
@@ -76,11 +84,8 @@ class packetMode {
       for(uint8_t general_idx = general_indexies[group]; general_idx <= general_indexies[group + 1]; general_idx++){
         this->packet[index] = general[general_idx];
         index++;
-        //Serial.println("Group: " + String(group));
-        //Serial.println("general value" + String(general[general_idx]));
       }
     }
-    //Serial.println("Index: " + String(index));
   }
   void print_packet(){
     Serial.print("packet: " + String(this->packet[0]));
@@ -91,47 +96,35 @@ class packetMode {
   }
 };
 
+//Indexies within general that are being parced
 uint8_t susIndexies[12] = {0,29, 34,35, 40,41, 46,47, 52,70, 79,86};
 uint8_t dampIndexies[6] = {0,15, 28,29, 79,86};
 uint8_t driveIndexies[12] = {0,11, 28,29, 40,41, 46,47, 52,62, 79,86};
 uint8_t slideIndexies[14] = {0,11, 28,29, 34,35, 40,41, 46,47, 52,53, 55,62};
 
-packetMode suspension = packetMode(uint8_t(63), uint8_t(2), uint8_t(576), susIndexies, uint8_t(sizeof(susIndexies)));
-packetMode damper = packetMode(uint8_t(26), uint8_t(9), uint8_t(981), dampIndexies, uint8_t(sizeof(dampIndexies)));
-packetMode drive = packetMode(uint8_t(37), uint8_t(2), uint8_t(381), driveIndexies, uint8_t(sizeof(driveIndexies)));
-packetMode slide = packetMode(uint8_t(30), uint8_t(5), uint8_t(666), slideIndexies, uint8_t(sizeof(slideIndexies)));
+//declaration of packetMode variables
+  //inputs offset(# indexies in each group), # of groups, desired latency in ms, indexies within general that are being parced, length of general indexies
+packetMode suspension = packetMode(uint8_t(63), uint8_t(2), uint16_t(576), susIndexies, uint8_t(sizeof(susIndexies)));
+packetMode damper = packetMode(uint8_t(26), uint8_t(9), uint16_t(981), dampIndexies, uint8_t(sizeof(dampIndexies)));
+packetMode drive = packetMode(uint8_t(37), uint8_t(2), uint16_t(381), driveIndexies, uint8_t(sizeof(driveIndexies)));
+packetMode slide = packetMode(uint8_t(30), uint8_t(5), uint16_t(666), slideIndexies, uint8_t(sizeof(slideIndexies)));
 
-//Declaring radio and can
+//Declaring LoRa instances, 1 for each radio
+// from https://github.com/jecrespo/RadioHead
 RH_RF95 driver1(CS0, G00);
 RH_RF95 driver2(CS1, G01);
 RH_RF95 driver3(CS2, G02);
 RH_RF95 driver4(CS3, G03);
+
+//Declaring radio and can
+// from https://github.com/tonton81/FlexCAN_T4
 FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> Can;
 
-//uint8_t susOffset = 63;
-uint8_t damperOffset = 26;
-uint8_t driveOffset = 37;
-uint8_t slideOffset = 30;
-
-//uint8_t susGroupNum = 2;    
-uint8_t damperGroupNum = 9; 
-uint8_t driveGroupNum = 2;  
-uint8_t slideGroupNum = 5;
-
-//uint8_t currSus = 0;    
-uint8_t currDamp = 0; 
-uint8_t currDrive = 0;  
-uint8_t currSlide = 0;
-
+//stores if the radio wasn initialized
 bool radio1 = false;
 bool radio2 = false;
 bool radio3 = false;
 bool radio4 = false;
-
-//indexes for general: !!!NOT UPDATED!!!
-  //imu starts at 4
-  //wheel packet starts at 28
-  //daq packet starts at 52
 
 // IMU VARIABLES
 int xAccel = -1;
@@ -167,33 +160,45 @@ int gps_lat = -1;
 int gps_long = -1;
 int batteryVoltage = -1;
 int daqCurrentDraw = -1;
+int fl_shock = -1;
+int fr_shock = -1;
+int rl_shock = -1;
+int rr_shock = -1;
 
-
-// Declare functions
+// Declare function
 void canSniff(const CAN_message_t &msg);
 
-//Baud rate, don't set too high or risk data loss
 unsigned long BAUD = 9600;
 
 void setup() {
   switch (mode){
   case 0:
-    _delay = 250;
+    _delay = 0;
     break;
   case 1:
     _delay = suspension.latency;
+    break;
   case 2:
     _delay = damper.latency;
+    break;
   case 3:
     _delay = drive.latency;
+    break;
   case 4:
     _delay = slide.latency;
+    break;
   default:
     break;
   }
+
+  //pinMode defines what pin you want an output to be, ie SCK (LED pin) is sent a signal when OUTPUT happens (radios send a packet)
   pinMode(SCK, OUTPUT);
 
-  Serial.begin(BAUD); //Set Baud rate, don't set too high or risk data loss - might be unused for teensy needs testing
+  Serial.begin(BAUD);
+
+  //attempt to initialize each radio, if successful then set the frequency median to 915 Hz, max power, and the modem config for our usecase
+    //frequency isn't exact as it is dynamically tuned to more open frequencies around that range
+
   radio1 = driver1.init();
   if (!radio1)
     Serial.println("init 1 failed"); 
@@ -235,148 +240,345 @@ void setup() {
   }
   
   Can.begin();
-  Can.setBaudRate(1000000);
+  Can.setBaudRate(1000000); // Our CAN loop's Baud rate
   Can.enableMBInterrupts(); // CAN mailboxes are interrupt-driven, meaning it does stuff when a message appears
-  Can.onReceive(canSniff);
+  Can.onReceive(canSniff); // Calls can sniff when it recives a can message
 }
 
+//The can messages are sent as a CAN messgae struct saved into msg, for us the important parts of the struct is
+  // timestamp - the FlexCAN time when the message arrived - BETA: Was millis(), testing how it changes the response
+  // buf - uint8_t array that holds our data
+  // id - identifier that tells us what message we recived
 
 void canSniff(const CAN_message_t &msg)
-{
-  unsigned long currentMillis = millis();
+{ 
+  //Grabing current millisecond, shifting right logicical to place the selected 8 bits into the 8 least significant bits,
+    //then performing a logical and with 0xFF to mask all the more significant bits
+  unsigned long currentMillis =  millis();
   general[0] = (currentMillis >> 24) & 0xFF;
   general[1] = (currentMillis >> 16) & 0xFF;
   general[2] = (currentMillis >> 8) & 0xFF;
   general[3] = currentMillis & 0xFF;
 
-  switch (msg.id)
-  {
+  //Potential msg.id values
+  // 0x360 = 864 = (imu) xAccel, yAccel = general 4 - 11
+  // 0x361 = 865 = (imu) zAccel, xGyro = general 12 - 19
+  // 0x362 = 866 = (imu) yGyro, zGyro = general 20 - 27
+
+  // 0x363 = 867 = (fl_wheel) fl speed, fl temp, fl amiant temp = general 28 - 33
+  // 0x364 = 868 = (fr_wheel) fr speed, fr temp, fr amiant temp = general 34 - 39
+  // 0x365 = 869 = (rl_wheel) rl speed, rl temp, rl amiant temp = general 40 - 45
+  // 0x366 = 870 = (rr_wheel) rr speed, rr temp, rr amiant temp = general 46 - 51
+  // undef = undef = (diff_wheel) diff_speed = general = 52 - 53
+
+  // 0x367 = 871 = (DRS) DRS open/cloosed = general 54
+
+  // 0x368 = 872 = (Datalog) throttle angle, throttle input, front brake pressure, rear brake pressure = general 55 - 62
+  // 0x369 = 873 = (Datalog) gps lattitude, gps longitude = general 63 - 70
+  // 0x36A = 874 = (Datalog) battery voltage, DAQ current draw = 71 - 78
+
+  // undef = undef = (Datalog) fl shock pot, fr shock pot, rl shock pot, rr shock pot = general 79 - 86
+
+  // Shouldn't need to bit shift since it is passed through buf as a uint8_t array, keeping code incase it breaks
+
+  switch (msg.id){
     case 0x360:
-      xAccel = (msg.buf[0] << 24) | (msg.buf[1] << 16) | (msg.buf[2] << 8) | msg.buf[3];
-      general[4] = (xAccel >> 24) & 0xFF;
-      general[5] = (xAccel >> 16) & 0xFF;
-      general[6] = (xAccel >> 8) & 0xFF;
-      general[7] = xAccel & 0xFF;
-      yAccel = (msg.buf[4] << 24) | (msg.buf[5] << 16) | (msg.buf[6] << 8) | msg.buf[7];
-      general[8] = (yAccel >> 24) & 0xFF;
-      general[9] = (yAccel >> 16) & 0xFF;
-      general[10] = (yAccel >> 8) & 0xFF;
-      general[11] = yAccel & 0xFF;
+      //xAccel, yAccel
+      // xAccel = (msg.buf[0] << 24) | (msg.buf[1] << 16) | (msg.buf[2] << 8) | msg.buf[3];
+      // yAccel = (msg.buf[4] << 24) | (msg.buf[5] << 16) | (msg.buf[6] << 8) | msg.buf[7];  
+
+      general[4] = msg.buf[0];
+      general[5] = msg.buf[1];
+      general[6] = msg.buf[2];
+      general[7] = msg.buf[3];
+      general[8] = msg.buf[4];
+      general[9] = msg.buf[5];
+      general[10] = msg.buf[6];
+      general[11] = msg.buf[7];
       break;
     case 0x361:
-      zAccel = (msg.buf[0] << 24) | (msg.buf[1] << 16) | (msg.buf[2] << 8) | msg.buf[3];
-      general[12] = (zAccel >> 24) & 0xFF;
-      general[13] = (zAccel >> 16) & 0xFF;
-      general[14] = (zAccel >> 8) & 0xFF;
-      general[15] = zAccel & 0xFF;
-      xGyro = (msg.buf[4] << 24) | (msg.buf[5] << 16) | (msg.buf[6] << 8) | msg.buf[7];
-      general[16] = (xGyro >> 24) & 0xFF;
-      general[17] = (xGyro >> 16) & 0xFF;
-      general[18] = (xGyro >> 8) & 0xFF;
-      general[19] = xGyro & 0xFF;
+      //zAccel, xGyro
+      // zAccel = (msg.buf[0] << 24) | (msg.buf[1] << 16) | (msg.buf[2] << 8) | msg.buf[3];
+      // xGyro = (msg.buf[4] << 24) | (msg.buf[5] << 16) | (msg.buf[6] << 8) | msg.buf[7];
+
+      general[12] = msg.buf[0];
+      general[13] = msg.buf[1];
+      general[14] = msg.buf[2];
+      general[15] = msg.buf[3];
+      general[16] = msg.buf[4];
+      general[17] = msg.buf[5];
+      general[18] = msg.buf[6];
+      general[19] = msg.buf[7];
       break;
     case 0x362:
-      yGyro = (msg.buf[0] << 24) | (msg.buf[1] << 16) | (msg.buf[2] << 8) | msg.buf[3];
-      general[20] = (yGyro >> 24) & 0xFF;
-      general[21] = (yGyro >> 16) & 0xFF;
-      general[22] = (yGyro >> 8) & 0xFF;
-      general[23] = yGyro & 0xFF;
-      zGyro = (msg.buf[4] << 24) | (msg.buf[5] << 16) | (msg.buf[6] << 8) | msg.buf[7];
-      general[24] = (zGyro >> 24) & 0xFF;
-      general[25] = (zGyro >> 16) & 0xFF;
-      general[26] = (zGyro >> 8) & 0xFF;
-      general[27] = zGyro & 0xFF;
+      // yGyro, zGyro
+      // yGyro = (msg.buf[0] << 24) | (msg.buf[1] << 16) | (msg.buf[2] << 8) | msg.buf[3];
+      // zGyro = (msg.buf[4] << 24) | (msg.buf[5] << 16) | (msg.buf[6] << 8) | msg.buf[7];
+
+      general[20] = msg.buf[0];
+      general[21] = msg.buf[1];
+      general[22] = msg.buf[2];
+      general[23] = msg.buf[3];
+      general[24] = msg.buf[4];
+      general[25] = msg.buf[5];
+      general[26] = msg.buf[6];
+      general[27] = msg.buf[7];
       break;
     case 0x363:
-      fl_speed = (msg.buf[0]) | msg.buf[1] << 8;
-      general[28] = (fl_speed >> 8) & 0xFF;
-      general[29] = fl_speed & 0xFF;
-      fl_brakeTemp = (msg.buf[2]) | msg.buf[3] << 8;
-      general[30] = (fl_brakeTemp >> 8) & 0xFF;
-      general[31] = fl_brakeTemp & 0xFF;
-      fl_ambTemp = (msg.buf[4]) | msg.buf[5] << 8;
-      general[32] = (fl_ambTemp >> 8) & 0xFF;
-      general[33] = fl_ambTemp & 0xFF;
+      //fl speed, fl temp, fl ambiant temp
+      // fl_speed = (msg.buf[0]) | msg.buf[1] << 8;
+      // fl_brakeTemp = (msg.buf[2]) | msg.buf[3] << 8;
+      // fl_ambTemp = (msg.buf[4]) | msg.buf[5] << 8;
+
+      general[28] = msg.buf[0];
+      general[29] = msg.buf[1];
+      general[30] = msg.buf[2];
+      general[31] = msg.buf[3];
+      general[32] = msg.buf[4];
+      general[33] = msg.buf[5];
       break;
     case 0x364:
-      fr_speed = (msg.buf[0]) | msg.buf[1] << 8;
-      general[34] = (fr_speed >> 8) & 0xFF;
-      general[35] = fr_speed & 0xFF;
-      fr_brakeTemp = (msg.buf[2]) | msg.buf[3] << 8;
-      general[36] = (fr_brakeTemp >> 8) & 0xFF;
-      general[37] = fr_brakeTemp & 0xFF;
-      fr_ambTemp = (msg.buf[4]) | msg.buf[5] << 8;
-      general[38] = (fr_ambTemp >> 8) & 0xFF;
-      general[39] = fr_ambTemp & 0xFF;
+      //fr speed, fr temp, fr ambiant temp
+      // fr_speed = (msg.buf[0]) | msg.buf[1] << 8;
+      // fr_brakeTemp = (msg.buf[2]) | msg.buf[3] << 8;
+      // fr_ambTemp = (msg.buf[4]) | msg.buf[5] << 8;
+
+      general[34] = msg.buf[0];
+      general[35] = msg.buf[1];
+      general[36] = msg.buf[2];
+      general[37] = msg.buf[3];
+      general[38] = msg.buf[4];
+      general[39] = msg.buf[5];
       break;
     case 0x365:
-      bl_speed = (msg.buf[0]) | msg.buf[1] << 8;
-      general[40] = (bl_speed >> 8) & 0xFF;
-      general[41] = bl_speed & 0xFF;
-      bl_brakeTemp = (msg.buf[2]) | msg.buf[3] << 8;
-      general[42] = (bl_brakeTemp >> 8) & 0xFF;
-      general[43] = bl_brakeTemp & 0xFF;
-      bl_ambTemp = (msg.buf[4]) | msg.buf[5] << 8;
-      general[44] = (bl_ambTemp >> 8) & 0xFF;
-      general[45] = bl_ambTemp & 0xFF;
+      //rl speed, rl temp, rl ambiant temp
+      // bl_speed = (msg.buf[0]) | msg.buf[1] << 8;
+      // bl_brakeTemp = (msg.buf[2]) | msg.buf[3] << 8;
+      // bl_ambTemp = (msg.buf[4]) | msg.buf[5] << 8;
+
+      general[40] = msg.buf[0];
+      general[41] = msg.buf[1];
+      general[42] = msg.buf[2];
+      general[43] = msg.buf[3];
+      general[44] = msg.buf[4];
+      general[45] = msg.buf[5];
       break;
     case 0x366:
-      br_speed = (msg.buf[0]) | msg.buf[1] << 8;
-      general[46] = (br_speed >> 8) & 0xFF;
-      general[47] = br_speed & 0xFF;
-      br_brakeTemp = (msg.buf[2]) | msg.buf[3] << 8;
-      general[48] = (br_brakeTemp >> 8) & 0xFF;
-      general[49] = br_brakeTemp & 0xFF;
-      br_ambTemp = (msg.buf[4]) | msg.buf[5] << 8;
-      general[50] = (br_ambTemp >> 8) & 0xFF;
-      general[51] = br_ambTemp & 0xFF;
+      //rr speed, rr temp, rr ambiant temp
+      // br_speed = (msg.buf[0]) | msg.buf[1] << 8;
+      // br_brakeTemp = (msg.buf[2]) | msg.buf[3] << 8;
+      // br_ambTemp = (msg.buf[4]) | msg.buf[5] << 8;
+
+      general[46] = msg.buf[0];
+      general[47] = msg.buf[1];
+      general[48] = msg.buf[2];
+      general[49] = msg.buf[3];
+      general[50] = msg.buf[4];
+      general[51] = msg.buf[5];
       break;
     case 0x367:
-      DRS = msg.buf[0];
-      general[54] = DRS ? 1 : 0;
+      //DRS = msg.buf[0];
+
+      general[54] = msg.buf[0] ? 1 : 0;
       break;
     case 0x368:
-      steeringAngle = (msg.buf[0]) | msg.buf[1] << 8;
-      general[55] = (steeringAngle << 8) & 0xFF;
-      general[56] = steeringAngle & 0xFF;
-      throttleInput = (msg.buf[2]) | msg.buf[3] << 8;
-      general[57] = (throttleInput << 8) & 0xFF;
-      general[58] = throttleInput & 0xFF;
-      frontBrakePressure = (msg.buf[4]) | msg.buf[5] << 8;
-      general[59] = (frontBrakePressure << 8) & 0xFF;
-      general[60] = frontBrakePressure & 0xFF;
-      rearBrakePressure = (msg.buf[6]) | msg.buf[7] << 8;
-      general[61] = (rearBrakePressure << 8) & 0xFF;
-      general[62] = rearBrakePressure & 0xFF;
+      // steeringAngle = (msg.buf[0]) | msg.buf[1] << 8;
+      // throttleInput = (msg.buf[2]) | msg.buf[3] << 8;
+      // rearBrakePressure = (msg.buf[6]) | msg.buf[7] << 8;
+      // frontBrakePressure = (msg.buf[4]) | msg.buf[5] << 8;
+
+      general[55] = msg.buf[0];
+      general[56] = msg.buf[1];
+      general[57] = msg.buf[2];
+      general[58] = msg.buf[3];
+      general[59] = msg.buf[4];
+      general[60] = msg.buf[5];
+      general[61] = msg.buf[6];
+      general[62] = msg.buf[7];
       break;
     case 0x369:
-      gps_lat = (msg.buf[0] << 24) | (msg.buf[1] << 16) | (msg.buf[2] << 8) | msg.buf[3];
-      general[63] = (gps_lat >> 24) & 0xFF;
-      general[64] = (gps_lat >> 16) & 0xFF;
-      general[65] = (gps_lat >> 8) & 0xFF;
-      general[66] = gps_lat & 0xFF;
-      gps_long = (msg.buf[4] << 24) | (msg.buf[5] << 16) | (msg.buf[6] << 8) | msg.buf[7];
-      general[67] = (gps_long >> 24) & 0xFF;
-      general[68] = (gps_long >> 16) & 0xFF;
-      general[69] = (gps_long >> 8) & 0xFF;
-      general[70] = gps_long & 0xFF;
+      // gps_lat = (msg.buf[0] << 24) | (msg.buf[1] << 16) | (msg.buf[2] << 8) | msg.buf[3];
+      // gps_long = (msg.buf[4] << 24) | (msg.buf[5] << 16) | (msg.buf[6] << 8) | msg.buf[7];
+
+      general[63] = msg.buf[0];
+      general[64] = msg.buf[1];
+      general[65] = msg.buf[2];
+      general[66] = msg.buf[3];
+      general[67] = msg.buf[4];
+      general[68] = msg.buf[5];
+      general[69] = msg.buf[6];
+      general[70] = msg.buf[7];
       break;
     case 0x36A:
-      batteryVoltage = (msg.buf[0] << 24) | (msg.buf[1] << 16) | (msg.buf[2] << 8) | msg.buf[3];
-      general[71] = (batteryVoltage >> 24) & 0xFF;
-      general[72] = (batteryVoltage >> 16) & 0xFF;
-      general[73] = (batteryVoltage >> 8) & 0xFF;
-      general[74] = batteryVoltage & 0xFF;
-      daqCurrentDraw = (msg.buf[4] << 24) | (msg.buf[5] << 16) | (msg.buf[6] << 8) | msg.buf[7];
-      general[75] = (batteryVoltage >> 24) & 0xFF;
-      general[76] = (batteryVoltage >> 16) & 0xFF;
-      general[77] = (batteryVoltage >> 8) & 0xFF;
-      general[78] = batteryVoltage & 0xFF;
+      // batteryVoltage = (msg.buf[0] << 24) | (msg.buf[1] << 16) | (msg.buf[2] << 8) | msg.buf[3];
+      // daqCurrentDraw = (msg.buf[4] << 24) | (msg.buf[5] << 16) | (msg.buf[6] << 8) | msg.buf[7];
+
+      general[71] = msg.buf[0];
+      general[72] = msg.buf[1];
+      general[73] = msg.buf[2];
+      general[74] = msg.buf[3];
+      general[75] = msg.buf[4];
+      general[76] = msg.buf[5];
+      general[77] = msg.buf[6];
+      general[78] = msg.buf[7];
       break;
+    default:
+      Serial.print("default: " + String(msg.buf[0]) + ", ");
+      for(int i = 1; i < msg.len; i++){
+        Serial.print(String(msg.buf[i]) + ", ");
+      }
+    break;
   }
-  //Only prints if serial monitor is open
-  if(Serial && !TESTING){
-    Serial.println("Received Data Log: " + String(msg.id) + ", " + String(currentMillis) + "ms"
+}
+
+void testPacket(){  
+  int currentMillis = millis();
+  general[0] = (currentMillis >> 24) & 0xFF;
+  general[1] = (currentMillis >> 16) & 0xFF;
+  general[2] = (currentMillis >> 8) & 0xFF;
+  general[3] = currentMillis & 0xFF;
+
+  xAccel = (rand() % 201) - (200 / 2);
+  general[4] = (xAccel >> 24) & 0xFF;
+  general[5] = (xAccel >> 16) & 0xFF;
+  general[6] = (xAccel >> 8) & 0xFF;
+  general[7] = xAccel & 0xFF;
+
+  yAccel = (rand() % 201) - (200 / 2);
+  general[8] = (yAccel >> 24) & 0xFF;
+  general[9] = (yAccel >> 16) & 0xFF;
+  general[10] = (yAccel >> 8) & 0xFF;
+  general[11] = yAccel & 0xFF;
+
+  zAccel = (rand() % 201) - (200 / 2);
+  general[12] = (zAccel >> 24) & 0xFF;
+  general[13] = (zAccel >> 16) & 0xFF;
+  general[14] = (zAccel >> 8) & 0xFF;
+  general[15] = zAccel & 0xFF;
+
+  xGyro = (rand() % 201) - (200 / 2);
+  general[16] = (xGyro >> 24) & 0xFF;
+  general[17] = (xGyro >> 16) & 0xFF;
+  general[18] = (xGyro >> 8) & 0xFF;
+  general[19] = xGyro & 0xFF;
+  
+  yGyro = (rand() % 201) - (200 / 2);
+  general[20] = (yGyro >> 24) & 0xFF;
+  general[21] = (yGyro >> 16) & 0xFF;
+  general[22] = (yGyro >> 8) & 0xFF;
+  general[23] = yGyro & 0xFF;
+  
+  zGyro = (rand() % 201) - (200 / 2);
+  general[24] = (zGyro >> 24) & 0xFF;
+  general[25] = (zGyro >> 16) & 0xFF;
+  general[26] = (zGyro >> 8) & 0xFF;
+  general[27] = zGyro & 0xFF;
+
+  fl_speed = (rand() % 201) - (200 / 2);
+  general[28] = (fl_speed >> 8) & 0xFF;
+  general[29] = fl_speed & 0xFF;
+
+  fl_brakeTemp = (rand() % 201) - (200 / 2);
+  general[30] = (fl_brakeTemp >> 8) & 0xFF;
+  general[31] = fl_brakeTemp & 0xFF;
+
+  fl_ambTemp = (rand() % 201) - (200 / 2);
+  general[32] = (fl_ambTemp >> 8) & 0xFF;
+  general[33] = fl_ambTemp & 0xFF;
+
+  fl_ambTemp = (rand() % 201) - (200 / 2);
+  general[34] = (fr_speed >> 8) & 0xFF;
+  general[35] = fr_speed & 0xFF;
+  
+  fr_brakeTemp = (rand() % 201) - (200 / 2);
+  general[36] = (fr_brakeTemp >> 8) & 0xFF;
+  general[37] = fr_brakeTemp & 0xFF;
+  
+  fr_ambTemp = (rand() % 201) - (200 / 2);
+  general[38] = (fr_ambTemp >> 8) & 0xFF;
+  general[39] = fr_ambTemp & 0xFF;
+
+  bl_speed = (rand() % 201) - (200 / 2);
+  general[40] = (bl_speed >> 8) & 0xFF;
+  general[41] = bl_speed & 0xFF;
+  
+  bl_brakeTemp = (rand() % 201) - (200 / 2);
+  general[42] = (bl_brakeTemp >> 8) & 0xFF;
+  general[43] = bl_brakeTemp & 0xFF;
+  
+  bl_ambTemp = (rand() % 201) - (200 / 2);
+  general[44] = (bl_ambTemp >> 8) & 0xFF;
+  general[45] = bl_ambTemp & 0xFF;
+
+  br_speed = (rand() % 201) - (200 / 2);
+  general[46] = (br_speed >> 8) & 0xFF;
+  general[47] = br_speed & 0xFF;
+  
+  br_brakeTemp = (rand() % 201) - (200 / 2);
+  general[48] = (br_brakeTemp >> 8) & 0xFF;
+  general[49] = br_brakeTemp & 0xFF;
+  
+  br_ambTemp = (rand() % 201) - (200 / 2);
+  general[50] = (br_ambTemp >> 8) & 0xFF;
+  general[51] = br_ambTemp & 0xFF;
+
+  DRS = rand() % 2;
+  general[54] = DRS ? 1 : 0;
+
+  steeringAngle = (rand() % 201) - (200 / 2);
+  general[55] = (steeringAngle << 8) & 0xFF;
+  general[56] = steeringAngle & 0xFF;
+  
+  throttleInput = (rand() % 201) - (200 / 2);
+  general[57] = (throttleInput << 8) & 0xFF;
+  general[58] = throttleInput & 0xFF;
+  
+  frontBrakePressure = (rand() % 201) - (200 / 2);
+  general[59] = (frontBrakePressure << 8) & 0xFF;
+  general[60] = frontBrakePressure & 0xFF;
+  
+  rearBrakePressure = (rand() % 201) - (200 / 2);
+  general[61] = (rearBrakePressure << 8) & 0xFF;
+  general[62] = rearBrakePressure & 0xFF;
+
+  gps_lat = (rand() % 201) - (200 / 2);
+  general[63] = (gps_lat >> 24) & 0xFF;
+  general[64] = (gps_lat >> 16) & 0xFF;
+  general[65] = (gps_lat >> 8) & 0xFF;
+  general[66] = gps_lat & 0xFF;
+  
+  gps_long = (rand() % 201) - (200 / 2);
+  general[67] = (gps_long >> 24) & 0xFF;
+  general[68] = (gps_long >> 16) & 0xFF;
+  general[69] = (gps_long >> 8) & 0xFF;
+  general[70] = gps_long & 0xFF;
+  
+  batteryVoltage = (rand() % 201) - (200 / 2);
+  general[71] = (batteryVoltage >> 24) & 0xFF;
+  general[72] = (batteryVoltage >> 16) & 0xFF;
+  general[73] = (batteryVoltage >> 8) & 0xFF;
+  general[74] = batteryVoltage & 0xFF;
+  
+  daqCurrentDraw = (rand() % 201) - (200 / 2);
+  general[75] = (batteryVoltage >> 24) & 0xFF;
+  general[76] = (batteryVoltage >> 16) & 0xFF;
+  general[77] = (batteryVoltage >> 8) & 0xFF;
+  general[78] = batteryVoltage & 0xFF;
+
+  fl_shock = (rand() % 201) - (200 / 2);
+  general[79] = (fl_shock << 8) & 0xFF;
+  general[80] = fl_shock & 0xFF;
+  
+  fr_shock = (rand() % 201) - (200 / 2);
+  general[81] = (fr_shock << 8) & 0xFF;
+  general[82] = fr_shock & 0xFF;
+  
+  rl_shock = (rand() % 201) - (200 / 2);
+  general[83] = (rl_shock << 8) & 0xFF;
+  general[84] = rl_shock & 0xFF;
+
+  if(Serial){
+    Serial.println("Received Data Log: " + String(currentMillis) + "ms"
                      + "\nDRS, " + String(DRS)
                      + "\nSteering Angle, " + String(steeringAngle) + "°"
                      + "\nThrottle, " + String(throttleInput) + "%"
@@ -394,65 +596,42 @@ void canSniff(const CAN_message_t &msg)
   }
 }
 
-void testPacket(){
-  bool boolTest = rand();
-  unsigned long timeTest = rand();
-  short shortTest = rand();
-  uint16_t int16Test = rand();
-  int intTest = rand();
-  
-  general[0] = (timeTest >> 24) & 0xFF;
-  general[1] = (timeTest >> 16) & 0xFF;
-  general[2] = (timeTest >> 8) & 0xFF;
-  general[3] = timeTest & 0xFF;
-
-  general[4] = (intTest >> 24) & 0xFF;
-  general[5] = (intTest >> 16) & 0xFF;
-  general[6] = (intTest >> 8) & 0xFF;
-  general[7] = intTest & 0xFF;
-  
-  general[28] = (int16Test >> 8) & 0xFF;
-  general[29] = int16Test & 0xFF;
-
-  general[30] = (shortTest >> 8) & 0xFF;
-  general[31] = shortTest & 0xFF;
-
-  general[52] = boolTest ? 1 : 0;
-
-  if(Serial){
-    Serial.println("Created test data: \nlong,\t" 
-                  + String(timeTest) + "ms"
-                  + "\nbool,\t" + String(boolTest)
-                  + "\nshort,\t" + String(shortTest)
-                  + "\n16int,\t" + String(int16Test)
-                  + "\nint,\t" + String(intTest));
-  }
-}
+//Counter that increments every loop, radio % 4 is what radio is chosen that loop and when radio is less than number of radios that initializes it sleeps the teensy for that delay 
 int radio = 0;
 
-void loop() {
-  //throw invalid_argument( "received negative value");
-  
+void loop() {  
   bool sent_pkt1 = false;
   bool sent_pkt2 = false;
   bool sent_pkt3 = false;
   bool sent_pkt4 = false;
-  
-  suspension.update();
-  damper.update();
-  drive.update();
-  slide.update();
-  
-  int time = millis();
-  general[0] = (time >> 24) & 0xFF;
-  general[1] = (time >> 16) & 0xFF;
-  general[2] = (time >> 8) & 0xFF;
-  general[3] = time & 0xFF;
 
-  // suspension.print_packet();
-  // damper.print_packet();
-  // drive.print_packet();
-  // slide.print_packet();
+  if (TESTING_RADIOS){
+    testPacket();
+  }
+
+  if(radio % 100000 == 0){
+    //Serial.println("Anti hang " + String(radio));
+  }
+
+  switch (mode){
+    case 1:{
+      suspension.update();
+      break;
+    }
+    case 2:{
+      damper.update();
+      break;
+    }
+    case 3:{
+      drive.update();
+      break;
+    }
+    case 4:{
+      slide.update();
+      break;
+    }
+  }
+  
   switch (radio % 4){
     case  0:
       if(!radio1){
@@ -504,7 +683,7 @@ void loop() {
           break;         
       }
       if (Serial){
-        Serial.println("Sent radio 2: " + String(sent_pkt2 * 2) + "\tmode: " + String(mode));
+        Serial.println("Sent radio 2: " + String(sent_pkt2) + "\tmode: " + String(mode));
       }
       break;
     case 2:
@@ -529,7 +708,7 @@ void loop() {
           sent_pkt3 = driver3.send(slide.packet.data(), slide.groupNum * slide.offset);
       }
       if (Serial){
-        Serial.println("Sent radio 3: " + String(sent_pkt3 * 3) + "\tmode: " + String(mode));
+        Serial.println("Sent radio 3: " + String(sent_pkt3) + "\tmode: " + String(mode));
       }
       break;
     case 3:
@@ -541,7 +720,7 @@ void loop() {
         case 0:
           sent_pkt4 = driver4.send(general, sizeof(general));
         case 1:
-          driver4.send(suspension.packet.data(), suspension.groupNum * suspension.offset);
+          sent_pkt4 = driver4.send(suspension.packet.data(), suspension.groupNum * suspension.offset);
           break;
         case 2:
           sent_pkt4 = driver4.send(damper.packet.data(), damper.groupNum * damper.offset);
@@ -553,7 +732,7 @@ void loop() {
           sent_pkt4 = driver4.send(slide.packet.data(), slide.groupNum * slide.offset);
       }
       if (Serial){
-        Serial.println("Sent radio 4: " + String(sent_pkt4 * 4) + "\tmode: " + String(mode));
+        Serial.println("Sent radio 4: " + String(sent_pkt4) + "\tmode: " + String(mode));
       }
       break;
   }

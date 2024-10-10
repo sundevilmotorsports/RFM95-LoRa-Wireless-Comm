@@ -16,7 +16,7 @@
 
 #define testing false
 
-int mode = 4; // 0 for general, 1 for suspension, 2 for damper, 3 for driver, 4 for slip/slide
+int mode = 1; // 0 for general, 1 for suspension, 2 for damper, 3 for driver, 4 for slip/slide
 
 
 bool radio1 = false;
