@@ -30,7 +30,6 @@ using namespace std;
 uint8_t mode = 1;
 uint16_t _delay;
 
-
 //Declare packet
 //Max length 251 (RH_RF95_MAX_MESSAGE_LEN), longer the message the longer send time
 //General is the master packet that is updated then by canSniff then parsed through to update other packets
