@@ -58,43 +58,46 @@ void setup(){
 
   radio1 = driver1.init();
   if (!radio1){
-    //Serial.println("init 1 failed"); 
+    Serial.println("init 1 failed"); 
   } else {
-    //Serial.println("init 1 succeded");
+    Serial.println("init 1 succeded");
     driver1.setFrequency(915.0); // Median of Hz range
-    driver1.setTxPower(23, false); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
+    driver1.setTxPower(RH_RF95_MAX_POWER, false); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
     driver1.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048); //Bandwidth of 125, Cognitive Radio 4/5, Spreading Factor 2048
     driver1.setModeRx();
   }
   
   radio2 = driver2.init();
   if (!radio2){
-    //Serial.println("init 2 failed"); 
+    Serial.println("init 2 failed"); 
   } else {
-    //Serial.println("init 2 succeded");
+    Serial.println("init 2 succeded");
     driver2.setFrequency(915.0);
     driver2.setTxPower(RH_RF95_MAX_POWER, false);
     driver2.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
+    driver2.setModeRx();
   }
 
   radio3 = driver3.init();
   if (!radio3) {
-    //Serial.println("init 3 failed"); 
+    Serial.println("init 3 failed"); 
   } else{
-    //Serial.println("init 3 succeded");
+    Serial.println("init 3 succeded");
     driver3.setFrequency(915.0);
     driver3.setTxPower(RH_RF95_MAX_POWER, false);
     driver3.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
+    driver3.setModeRx();
   }
 
   radio4 = driver4.init();
   if (!radio4){
-    //Serial.println("init 4 failed"); 
+    Serial.println("init 4 failed"); 
   } else{
     Serial.println("init 4 succeded");
     driver4.setFrequency(915.0);
     driver4.setTxPower(RH_RF95_MAX_POWER, false);
     driver4.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
+    driver4.setModeRx();
   }  
 }
 
@@ -139,7 +142,6 @@ void loop() {
     } else {
       packetRead();
     }
-    driver4.waitAvailableTimeout(INTERVAL2);
   }
   if (testing){
     Serial.println("radio 1 init: " + String(radio1) + "\tradio 1 recive: " + String(read1));
@@ -147,7 +149,6 @@ void loop() {
     Serial.println("radio 3 init: " + String(radio3) + "\tradio 3 recive: " + String(read3));
     Serial.println("radio 4 init: " + String(radio4) + "\tradio 4 recive: " + String(read4));
   }
-  //Serial.println("Reciver 3 not available :(");
 }
 
 

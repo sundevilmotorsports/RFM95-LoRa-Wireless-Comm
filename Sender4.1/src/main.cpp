@@ -21,7 +21,7 @@ using namespace std;
 
 #define SCK 13
 
-#define TESTING_CAN false
+#define TESTING_CAN true
 #define TESTING_RADIOS false
 
 //Modes defined in Radio-Radio
@@ -253,6 +253,7 @@ void canSniff(const CAN_message_t &msg)
 { 
   //Grabing current millisecond, shifting right logicical to place the selected 8 bits into the 8 least significant bits,
     //then performing a logical and with 0xFF to mask all the more significant bits
+  Serial.println("in can");
   unsigned long currentMillis =  millis();
   general[0] = (currentMillis >> 24) & 0xFF;
   general[1] = (currentMillis >> 16) & 0xFF;
@@ -608,10 +609,6 @@ void loop() {
     testPacket();
   }
 
-  if(radio % 100000 == 0){
-    //Serial.println("Anti hang " + String(radio));
-  }
-
   switch (mode){
     case 1:{
       suspension.update();
@@ -630,6 +627,27 @@ void loop() {
       break;
     }
   }
+  if(TESTING_CAN){
+    switch (mode){
+      case 1:{
+        suspension.print_packet();
+        break;
+      }
+      case 2:{
+        damper.print_packet();
+        break;
+      }
+      case 3:{
+        drive.print_packet();
+        break;
+      }
+      case 4:{
+        slide.print_packet();
+        break;
+      }
+    }
+  }
+
   
   switch (radio % 4){
     case  0:

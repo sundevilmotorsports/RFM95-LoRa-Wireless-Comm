@@ -16,7 +16,7 @@
 
 // This is the maximum number of interrupts the driver can support
 // Most Arduinos can handle 2, Megas can handle more
-#define RH_RF95_NUM_INTERRUPTS 3
+#define RH_RF95_NUM_INTERRUPTS 4
 
 // Max number of octets the LORA Rx/Tx FIFO can hold
 #define RH_RF95_FIFO_SIZE 255
@@ -310,7 +310,7 @@
 ///
 /// \par Packet Format
 ///
-/// All messages sent and received by this RH_RF95 Driver conform to this packet format, which is compatible with RH_SX126x:
+/// All messages sent and received by this RH_RF95 Driver conform to this packet format:
 ///
 /// - LoRa mode:
 /// - 8 symbol PREAMBLE
@@ -378,8 +378,6 @@
 /// // Slave Select is pin 10, interrupt is Pin 3
 /// RH_RF95 driver(10, 3);
 /// \endcode
-/// You can use the same constructor for Arduino Due, and this pinout diagram may be useful:
-/// http://www.robgray.com/temp/Due-pinout-WEB.png
 ///
 /// If you have a Rocket Scream Mini Ultra Pro with the RFM95W:
 /// - Ensure you have Arduino SAMD board support 1.6.5 or later in Arduino IDE 1.6.8 or later.
@@ -671,7 +669,7 @@ public:
     /// You should be sure to call this function frequently enough to not miss any messages
     /// It is recommended that you call it in your main loop.
     /// \param[in] buf Location to copy the received message
-    /// \param[in,out] len Pointer to the number of octets available in buf. The number be reset to the actual number of octets copied.
+    /// \param[in,out] len Pointer to available space in buf. Set to the actual number of octets copied.
     /// \return true if a valid message was copied to buf
     virtual bool    recv(uint8_t* buf, uint8_t* len);
 
@@ -838,7 +836,7 @@ public:
     /// When false, does not send CRC in outgoing packets and does not require a CRC to be
     /// present on incoming packets. However if a CRC is present, it must be correct.
     /// Normally this should be left on (the default)
-    /// so that packets with a bad CRC are rejected. If turned off you will be much more likely to receive
+    /// so that packets with a bad CRC are rejected. If turned off you wil be much more likely to receive
     /// false noise packets.
     /// \param[in] on bool, true enables CRCs in incoming and outgoing packets, false disables them
     void setPayloadCRC(bool on);
@@ -850,10 +848,6 @@ public:
     uint8_t getDeviceVersion();
     
 protected:
-
-    /// Do whatever is necesary to establish the interrupt handler. Subclasses may have different needs 
-    bool setupInterruptHandler();
-    
     /// This is a low level function to handle the interrupts for one instance of RH_RF95.
     /// Called automatically by isr*()
     /// Should not need to be called by user code.
@@ -882,8 +876,11 @@ private:
     /// Low level interrupt service routine for device connected to interrupt 1
     static void         isr1();
 
-    /// Low level interrupt service routine for device connected to interrupt 1
+    /// Low level interrupt service routine for device connected to interrupt 2
     static void         isr2();
+
+    /// Low level interrupt service routine for device connected to interrupt 3
+    static void         isr3();
 
     /// Array of instances connected to interrupts 0 and 1
     static RH_RF95*     _deviceForInterrupt[];
@@ -921,13 +918,12 @@ private:
     
 };
 
-/// @example rf95_client.ino
-/// @example rf95_client.ino
-/// @example rf95_server.ino
-/// @example rf95_encrypted_client.ino
-/// @example rf95_encrypted_server.ino
-/// @example rf95_reliable_datagram_client.ino
-/// @example rf95_reliable_datagram_server.ino
+/// @example rf95_client.pde
+/// @example rf95_server.pde
+/// @example rf95_encrypted_client.pde
+/// @example rf95_encrypted_server.pde
+/// @example rf95_reliable_datagram_client.pde
+/// @example rf95_reliable_datagram_server.pde
 
 #endif
 
