@@ -7,16 +7,16 @@
 
 using namespace std;
 
-#define CS0 7
+#define CS0 10
 #define G00 21
 
-#define CS1 8
+#define CS1 9
 #define G01 20
 
-#define CS2 9
+#define CS2 7
 #define G02 19
 
-#define CS3 10
+#define CS3 6
 #define G03 18
 
 #define SCK 13
@@ -169,7 +169,6 @@ int rr_shock = -1;
 void canSniff(const CAN_message_t &msg);
 
 unsigned long BAUD = 9600;
-
 void setup() {
   switch (mode){
   case 0:
@@ -195,9 +194,9 @@ void setup() {
   pinMode(SCK, OUTPUT);
 
   Serial.begin(BAUD);
-
+  
   //attempt to initialize each radio, if successful then set the frequency median to 915 Hz, max power, and the modem config for our usecase
-    //frequency isn't exact as it is dynamically tuned to more open frequencies around that range
+    //frequency isn't exact as it is dynamically tuned to open frequencies around that range
 
   radio1 = driver1.init();
   if (!radio1)
