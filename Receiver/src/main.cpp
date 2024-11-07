@@ -42,14 +42,10 @@ bool read4;
 void testRead();
 void packetRead();
 
-//interval for checking if sender is available in milliseconds
-const unsigned long INTERVAL1 = 500;
-
-//interval for waiting for new packet before searching for connection
-const unsigned long INTERVAL2 = 5000;
-
 //Baud rate, don't set too high or risk data loss
 unsigned long BAUD = 9600;
+
+int receiver_inc = 0;
 
 void setup(){
   Serial.begin(BAUD);
@@ -65,6 +61,7 @@ void setup(){
     driver1.setTxPower(RH_RF95_MAX_POWER, false); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
     driver1.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048); //Bandwidth of 125, Cognitive Radio 4/5, Spreading Factor 2048
     driver1.setModeRx();
+    driver1.setPromiscuous(true);
   }
   
   radio2 = driver2.init();
@@ -76,6 +73,7 @@ void setup(){
     driver2.setTxPower(RH_RF95_MAX_POWER, false);
     driver2.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
     driver2.setModeRx();
+    driver2.setPromiscuous(true);
   }
 
   radio3 = driver3.init();
@@ -87,6 +85,7 @@ void setup(){
     driver3.setTxPower(RH_RF95_MAX_POWER, false);
     driver3.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
     driver3.setModeRx();
+    driver3.setPromiscuous(true);
   }
 
   radio4 = driver4.init();
@@ -98,49 +97,70 @@ void setup(){
     driver4.setTxPower(RH_RF95_MAX_POWER, false);
     driver4.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
     driver4.setModeRx();
+    driver4.setPromiscuous(true);
   }  
 }
+
+int timing = 0;
 
 void loop() {
   read1 = false;
   read2 = false;
   read3 = false;
   read4 = false;
-  
-  if(driver1.available() && radio1){
-    read1 = driver1.recv(pkt, &length);
-    if (testing){
-      Serial.print("Driver1: ");
-      testRead();
-    } else {
-      packetRead();
+
+  //Serial.println("anti-hang tech: " + String(receiver_inc));
+
+  switch (receiver_inc) {
+    case 0: {
+      if(driver1.available() && radio1){
+        read1 = driver1.recv(pkt, &length);
+        if (testing){
+          Serial.print("Driver1: ");
+          testRead();
+        } else {
+          packetRead();
+        }
+        int temp = millis();
+        Serial.println("A milli A milli A milli 1: " + String(temp - timing));
+        timing = temp;
+      } receiver_inc = (receiver_inc+1) % 4; break; 
     }
-    driver1.waitAvailableTimeout(INTERVAL2);
-  } else if(driver2.available() && radio2){
-    read2 = driver2.recv(pkt, &length);
-    if (testing){
-      Serial.print("Driver2: ");
-      testRead();
-    } else {
-      packetRead();
+    case 1: {
+      if(driver2.available() && radio2) {
+        read2 = driver2.recv(pkt, &length);
+        if (testing){
+          Serial.print("Driver2: ");
+          testRead();
+        } else {
+          packetRead();
+        }
+        int temp = millis();
+        Serial.println("A milli A milli A milli 2: " + String(temp - timing));
+        timing = temp;
+      } receiver_inc = (receiver_inc+1) % 4; break;
     }
-    driver2.waitAvailableTimeout(INTERVAL2);
-  } else if(driver3.available() && radio3){
-    read3 = driver3.recv(pkt, &length);
-    if (testing){
-      Serial.print("Driver3: ");
-      testRead();
-    } else {
-      packetRead();
-    }
-    driver3.waitAvailableTimeout(INTERVAL2);
-  } else if(driver4.available() && radio4){
-    read4 = driver4.recv(pkt, &length);
-    if (testing){
-      Serial.print("Driver4: ");
-      testRead();
-    } else {
-      packetRead();
+    case 2: {
+      if(!driver3.available() && radio3) {
+        read3 = driver3.recv(pkt, &length);
+        if (testing){
+          Serial.print("Driver3: ");
+          testRead();
+        } else {
+          packetRead();
+        }
+      } receiver_inc = (receiver_inc+1) % 4; break;
+    } 
+    case 3: {
+      if(!driver4.available() && radio4){
+        read4 = driver4.recv(pkt, &length);
+        if (testing) {
+          Serial.print("Driver4: ");
+          testRead();
+        } else {
+          packetRead();
+        }
+      } receiver_inc = (receiver_inc+1) % 4; break; 
     }
   }
   if (testing){

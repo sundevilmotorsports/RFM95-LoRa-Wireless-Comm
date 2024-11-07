@@ -165,11 +165,66 @@ int fr_shock = -1;
 int rl_shock = -1;
 int rr_shock = -1;
 
+float num_radios = 0;
+
 // Declare function
 void canSniff(const CAN_message_t &msg);
 
 unsigned long BAUD = 9600;
 void setup() {
+
+  //pinMode defines what pin you want an output to be, ie SCK (LED pin) is sent a signal when OUTPUT happens (radios send a packet)
+  pinMode(SCK, OUTPUT);
+
+  Serial.begin(BAUD);
+  
+  //attempt to initialize each radio, if successful then set the frequency median to 915 Hz, max power, and the modem config for our usecase
+    //frequency isn't exact as it is dynamically tuned to open frequencies around that range
+
+  radio1 = driver1.init();
+  if (!radio1)
+    Serial.println("init 1 failed"); 
+  else {
+    Serial.println("init 1 succeded");
+    driver1.setFrequency(915.0); // Median of Hz range
+    driver1.setTxPower(RH_RF95_MAX_POWER, false); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
+    driver1.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048); //Bandwidth of 125, Cognitive Radio 4/5, Spreading Factor 2048
+    num_radios++;
+  }
+
+  radio2 = driver2.init();
+  if (!radio2)
+    Serial.println("init 2 failed"); 
+  else{
+    Serial.println("init 2 succeded");
+    driver2.setFrequency(915.0);
+    driver2.setTxPower(RH_RF95_MAX_POWER, false);
+    driver2.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
+    num_radios++;
+  }
+
+  radio3 = driver3.init();
+  if (!radio3)
+    Serial.println("init 3 failed"); 
+  else{
+    Serial.println("init 3 succeded");
+    driver3.setFrequency(915.0);
+    driver3.setTxPower(RH_RF95_MAX_POWER, false);
+    driver3.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
+    num_radios++;
+  }
+
+  radio4 = driver4.init();
+  if (!radio4)
+    Serial.println("init 4 failed"); 
+  else {
+    Serial.println("init 4 succeded");
+    driver4.setFrequency(915.0);
+    driver4.setTxPower(RH_RF95_MAX_POWER, false);
+    driver4.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
+    num_radios++;
+  }
+
   switch (mode){
   case 0:
     _delay = 0;
@@ -189,59 +244,11 @@ void setup() {
   default:
     break;
   }
-
-  //pinMode defines what pin you want an output to be, ie SCK (LED pin) is sent a signal when OUTPUT happens (radios send a packet)
-  pinMode(SCK, OUTPUT);
-
-  Serial.begin(BAUD);
-  
-  //attempt to initialize each radio, if successful then set the frequency median to 915 Hz, max power, and the modem config for our usecase
-    //frequency isn't exact as it is dynamically tuned to open frequencies around that range
-
-  radio1 = driver1.init();
-  if (!radio1)
-    Serial.println("init 1 failed"); 
-  else {
-    Serial.println("init 1 succeded");
-    driver1.setFrequency(915.0); // Median of Hz range
-    driver1.setTxPower(RH_RF95_MAX_POWER, false); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
-    driver1.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048); //Bandwidth of 125, Cognitive Radio 4/5, Spreading Factor 2048
-  }
-
-  radio2 = driver2.init();
-  if (!radio2)
-    Serial.println("init 2 failed"); 
-  else{
-    Serial.println("init 2 succeded");
-    driver2.setFrequency(915.0);
-    driver2.setTxPower(RH_RF95_MAX_POWER, false);
-    driver2.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
-  }
-
-  radio3 = driver3.init();
-  if (!radio3)
-    Serial.println("init 3 failed"); 
-  else{
-    Serial.println("init 3 succeded");
-    driver3.setFrequency(915.0);
-    driver3.setTxPower(RH_RF95_MAX_POWER, false);
-    driver3.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
-  }
-
-  radio4 = driver4.init();
-  if (!radio4)
-    Serial.println("init 4 failed"); 
-  else {
-    Serial.println("init 4 succeded");
-    driver4.setFrequency(915.0);
-    driver4.setTxPower(RH_RF95_MAX_POWER, false);
-    driver4.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
-  }
   
   Can.begin();
   Can.setBaudRate(1000000); // Our CAN loop's Baud rate
   Can.enableMBInterrupts(); // CAN mailboxes are interrupt-driven, meaning it does stuff when a message appears
-  Can.onReceive(canSniff); // Calls can sniff when it recives a can message
+  //Can.onReceive(canSniff); // Calls can sniff when it recives a can message
 }
 
 //The can messages are sent as a CAN messgae struct saved into msg, for us the important parts of the struct is
@@ -757,7 +764,8 @@ void loop() {
       }
       break;
   }
-  if(radio < 4){
+  
+  if(radio < num_radios){
     delay(_delay);
   }
   radio++;
