@@ -4,6 +4,8 @@
 #include <SPI.h>
 #include <iostream>
 #include <chrono>
+#include <map>
+#include <vector>
 
 using namespace std;
 
@@ -24,10 +26,20 @@ using namespace std;
 #define TESTING_CAN false
 #define TESTING_RADIOS false
 
+#define MODEM_CONFIG RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048
+
+std::map<RH_RF95::ModemConfigChoice, std::pair<float, int>> config = {
+	{RH_RF95::ModemConfigChoice::Bw500Cr45Sf128,  {0.37,8}},    //short & fast,     0.37x + 5 ms
+  {RH_RF95::ModemConfigChoice::Bw125Cr45Sf128,  {1.47,31}},   // medium & medium, 1.47x + 31 ms
+	{RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048, {15.01, 414}},// long & slow,     15.01x + 414 ms
+	{RH_RF95::ModemConfigChoice::Bw31_25Cr48Sf512,{28.72,594}}, // long & sloww,    28.72x + 594 ms
+	{RH_RF95::ModemConfigChoice::Bw125Cr48Sf4096, {52.22,926}}  // long & slowwww,  52.22x + 926 ms
+};
+
 //Modes defined in Radio-Radio
 //mode defs: 0 = general, 1 = suspension, 2 = damper, 3 = driver, 4 = slip/slide
 
-uint8_t mode = 1;
+uint8_t mode = 0;
 uint16_t _delay;
 
 //Declare packet
@@ -36,6 +48,7 @@ uint16_t _delay;
   //Testing determened send time was found with ((packet length * 0.015 * number of groupings)+0.414)/number of radios = latency in seconds from start to recive time
 
 uint8_t general[86];
+uint8_t fake_general[251];
 
 class packetMode {
   private:
@@ -180,7 +193,6 @@ void setup() {
   
   //attempt to initialize each radio, if successful then set the frequency median to 915 Hz, max power, and the modem config for our usecase
     //frequency isn't exact as it is dynamically tuned to open frequencies around that range
-
   radio1 = driver1.init();
   if (!radio1)
     Serial.println("init 1 failed"); 
@@ -188,7 +200,10 @@ void setup() {
     Serial.println("init 1 succeded");
     driver1.setFrequency(915.0); // Median of Hz range
     driver1.setTxPower(RH_RF95_MAX_POWER, false); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
-    driver1.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048); //Bandwidth of 125, Cognitive Radio 4/5, Spreading Factor 2048
+    //driver1.setModemConfig(MODEM_CONFIG); //Bandwidth of 125, Cognitive Radio 4/5, Spreading Factor 2048
+    driver1.setSpreadingFactor(8);
+    driver1.setSignalBandwidth(125000);
+    driver1.setCodingRate4(5);
     num_radios++;
   }
 
@@ -199,7 +214,10 @@ void setup() {
     Serial.println("init 2 succeded");
     driver2.setFrequency(915.0);
     driver2.setTxPower(RH_RF95_MAX_POWER, false);
-    driver2.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
+    driver2.setModemConfig(MODEM_CONFIG);
+    driver2.setSpreadingFactor(8);
+    driver2.setSignalBandwidth(125000);
+    driver2.setCodingRate4(5);
     num_radios++;
   }
 
@@ -210,7 +228,10 @@ void setup() {
     Serial.println("init 3 succeded");
     driver3.setFrequency(915.0);
     driver3.setTxPower(RH_RF95_MAX_POWER, false);
-    driver3.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
+    driver3.setModemConfig(MODEM_CONFIG);
+    driver3.setSpreadingFactor(8);
+    driver3.setSignalBandwidth(125000);
+    driver3.setCodingRate4(5);
     num_radios++;
   }
 
@@ -221,7 +242,10 @@ void setup() {
     Serial.println("init 4 succeded");
     driver4.setFrequency(915.0);
     driver4.setTxPower(RH_RF95_MAX_POWER, false);
-    driver4.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
+    driver4.setModemConfig(MODEM_CONFIG);
+    driver4.setSpreadingFactor(8);
+    driver4.setSignalBandwidth(125000);
+    driver4.setCodingRate4(5);
     num_radios++;
   }
 
@@ -668,7 +692,7 @@ void loop() {
       }
       switch(mode){
         case 0:
-          sent_pkt1 = driver1.send(general, sizeof(general));
+          sent_pkt1 = driver1.send(fake_general, sizeof(fake_general));
           break;
         case 1:
           sent_pkt1 = driver1.send(suspension.packet.data(), suspension.groupNum * suspension.offset);

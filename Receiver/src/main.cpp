@@ -16,8 +16,9 @@
 
 #define testing false
 
-int mode = 1; // 0 for general, 1 for suspension, 2 for damper, 3 for driver, 4 for slip/slide
+#define MODEM_CONFIG RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048
 
+int mode = 0; // 0 for general, 1 for suspension, 2 for damper, 3 for driver, 4 for slip/slide
 
 bool radio1 = false;
 bool radio2 = false;
@@ -30,7 +31,7 @@ RH_RF95 driver2(CS1, G01);
 RH_RF95 driver3(CS2, G02);
 RH_RF95 driver4(CS3, G03);
 
-uint8_t pkt[251];
+uint8_t pkt[255];
 uint8_t length = sizeof(pkt);
 
 bool read1;
@@ -59,9 +60,11 @@ void setup(){
     Serial.println("init 1 succeded");
     driver1.setFrequency(915.0); // Median of Hz range
     driver1.setTxPower(RH_RF95_MAX_POWER, false); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
-    driver1.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048); //Bandwidth of 125, Cognitive Radio 4/5, Spreading Factor 2048
+    driver1.setModemConfig(MODEM_CONFIG); //Bandwidth of 125, Cognitive Radio 4/5, Spreading Factor 2048
+    driver1.setSpreadingFactor(8);
+    driver1.setSignalBandwidth(125000);
+    driver1.setCodingRate4(5);
     driver1.setModeRx();
-    driver1.setPromiscuous(true);
   }
   
   radio2 = driver2.init();
@@ -71,9 +74,11 @@ void setup(){
     Serial.println("init 2 succeded");
     driver2.setFrequency(915.0);
     driver2.setTxPower(RH_RF95_MAX_POWER, false);
-    driver2.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
+    driver2.setModemConfig(MODEM_CONFIG);
+    driver2.setSpreadingFactor(8);
+    driver2.setSignalBandwidth(125000);
+    driver2.setCodingRate4(5);
     driver2.setModeRx();
-    driver2.setPromiscuous(true);
   }
 
   radio3 = driver3.init();
@@ -83,9 +88,11 @@ void setup(){
     Serial.println("init 3 succeded");
     driver3.setFrequency(915.0);
     driver3.setTxPower(RH_RF95_MAX_POWER, false);
-    driver3.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
+    driver3.setModemConfig(MODEM_CONFIG);
+    driver3.setSpreadingFactor(8);
+    driver3.setSignalBandwidth(125000);
+    driver3.setCodingRate4(5);
     driver3.setModeRx();
-    driver3.setPromiscuous(true);
   }
 
   radio4 = driver4.init();
@@ -95,9 +102,11 @@ void setup(){
     Serial.println("init 4 succeded");
     driver4.setFrequency(915.0);
     driver4.setTxPower(RH_RF95_MAX_POWER, false);
-    driver4.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf2048);
+    driver4.setModemConfig(MODEM_CONFIG);
+    driver4.setSpreadingFactor(8);
+    driver4.setSignalBandwidth(125000);
+    driver4.setCodingRate4(5);
     driver4.setModeRx();
-    driver4.setPromiscuous(true);
   }  
 }
 
