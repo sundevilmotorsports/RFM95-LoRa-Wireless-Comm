@@ -66,7 +66,7 @@ void setup(){
     driver1.setTxPower(RH_RF95_MAX_POWER, false); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
     driver1.setModemConfig(MODEM_CONFIG); //Bandwidth of 125, Cognitive Radio 4/5, Spreading Factor 2048
     // driver1.setSpreadingFactor(8);
-    // driver1.setSignalBandwidth(125000);
+    // driver1.setSignalBandwidth(500000);
     // driver1.setCodingRate4(5);
     driver1.setModeRx();
   }
@@ -80,7 +80,7 @@ void setup(){
     driver2.setTxPower(RH_RF95_MAX_POWER, false);
     driver2.setModemConfig(MODEM_CONFIG);
     // driver2.setSpreadingFactor(8);
-    // driver2.setSignalBandwidth(125000);
+    // driver2.setSignalBandwidth(500000);
     // driver2.setCodingRate4(5);
     driver2.setModeRx();
   }
@@ -94,7 +94,7 @@ void setup(){
     driver3.setTxPower(RH_RF95_MAX_POWER, false);
     driver3.setModemConfig(MODEM_CONFIG);
     // driver3.setSpreadingFactor(8);
-    // driver3.setSignalBandwidth(125000);
+    // driver3.setSignalBandwidth(500000);
     // driver3.setCodingRate4(5);
     driver3.setModeRx();
   }
@@ -108,13 +108,16 @@ void setup(){
     driver4.setTxPower(RH_RF95_MAX_POWER, false);
     driver4.setModemConfig(MODEM_CONFIG);
     // driver4.setSpreadingFactor(8);
-    // driver4.setSignalBandwidth(125000);
+    // driver4.setSignalBandwidth(500000);
     // driver4.setCodingRate4(5);
     driver4.setModeRx();
   }  
 }
 
 int timing = 0;
+int timing1 = 0;
+int timing2 = 0;
+int timing3 = 0;
 
 void loop() {
   read1 = false;
@@ -127,54 +130,72 @@ void loop() {
   switch (receiver_inc) {
     case 0: {
       //Serial.println("reciver 0 " + String(driver1.available()));
-      if(driver1.available() && radio1){
+      //if(driver1.available() && radio1){
+      if(radio1){
         read1 = driver1.recv(pkt, &length);
-        if (testing){
-          Serial.print("Driver1: ");
-          testRead();
-        } else {
-          packetRead();
+        if(read1){
+          if (testing){
+            Serial.print("Driver1: ");
+            testRead();
+          } else {
+            packetRead();
+            Serial.println("\nbuf len: " + String(length) + "\n");
+          }
+          int temp = millis();
+          //Serial.println("A milli A milli A milli 1: " + String(temp - timing));
+          timing = temp;
         }
-        int temp = millis();
-        Serial.println("A milli A milli A milli 1: " + String(temp - timing));
-        timing = temp;
-      } receiver_inc = (receiver_inc+1) % 4; break; 
+      } break; 
     }
     case 1: {
-      if(driver2.available() && radio2) {
+      if(radio2) {
         read2 = driver2.recv(pkt, &length);
-        if (testing){
-          Serial.print("Driver2: ");
-          testRead();
-        } else {
-          packetRead();
+        if (read2){
+          if (testing){
+            Serial.print("Driver2: ");
+            testRead();
+          } else {
+            packetRead();
+            Serial.println("\nbuf len: " + String(length) + "\n");
+          }
+          int temp = millis();
+          //Serial.println("A milli A milli A milli 2: " + String(temp - timing));
+          timing1 = temp;
         }
-        int temp = millis();
-        Serial.println("A milli A milli A milli 2: " + String(temp - timing));
-        timing = temp;
-      } receiver_inc = (receiver_inc+1) % 4; break;
+      } break;
     }
     case 2: {
-      if(!driver3.available() && radio3) {
+      if(radio3) {
         read3 = driver3.recv(pkt, &length);
-        if (testing){
-          Serial.print("Driver3: ");
-          testRead();
-        } else {
-          packetRead();
+        if (read3) {
+          if (testing){
+            Serial.print("Driver3: ");
+            testRead();
+          } else {
+            packetRead();
+            Serial.println("\nbuf len: " + String(length) + "\n");
+          }
+          int temp = millis();
+          //Serial.println("A milli A milli A milli 3: " + String(temp - timing));
+          timing2 = temp;
         }
-      } receiver_inc = (receiver_inc+1) % 4; break;
+      } break;
     } 
     case 3: {
-      if(!driver4.available() && radio4){
+      if(radio4){
         read4 = driver4.recv(pkt, &length);
-        if (testing) {
-          Serial.print("Driver4: ");
-          testRead();
-        } else {
-          packetRead();
+        if (read4) {
+          if (testing) {
+            Serial.print("Driver4: ");
+            testRead();
+          } else {
+            packetRead();
+          }
+          int temp = millis();
+          //Serial.println("A milli A milli A milli 4: " + String(temp - timing));
+          timing3 = temp;
         }
-      } receiver_inc = (receiver_inc+1) % 4; break; 
+      } break;
     }
   }
   if (testing){
@@ -183,6 +204,7 @@ void loop() {
     Serial.println("radio 3 init: " + String(radio3) + "\tradio 3 recive: " + String(read3));
     Serial.println("radio 4 init: " + String(radio4) + "\tradio 4 recive: " + String(read4));
   }
+  receiver_inc = (receiver_inc+1) % 4;
 }
 
 
