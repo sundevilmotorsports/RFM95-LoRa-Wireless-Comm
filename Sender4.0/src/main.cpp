@@ -26,7 +26,7 @@ using namespace std;
 #define TESTING_CAN false
 #define TESTING_RADIOS false
 
-#define MODEM_CONFIG RH_RF95::ModemConfigChoice::Bw500Cr45Sf128
+#define MODEM_CONFIG RH_RF95::ModemConfigChoice::Bw125Cr48Sf4096
 
 std::map<RH_RF95::ModemConfigChoice, std::pair<float, int>> config = {
 	{RH_RF95::ModemConfigChoice::Bw500Cr45Sf128,  {0.37,8}},    //short & fast,     0.37x + 5 ms
@@ -201,9 +201,9 @@ void setup() {
     driver1.setFrequency(915.0); // Median of Hz range
     driver1.setTxPower(RH_RF95_MAX_POWER, false); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
     driver1.setModemConfig(MODEM_CONFIG); //Bandwidth of 125, Cognitive Radio 4/5, Spreading Factor 2048
-    // driver1.setSpreadingFactor(8);
-    // driver1.setSignalBandwidth(125000);
-    // driver1.setCodingRate4(5);
+     driver1.setSpreadingFactor(9);
+     driver1.setSignalBandwidth(500000);
+     driver1.setCodingRate4(5);
     num_radios++;
   }
 
