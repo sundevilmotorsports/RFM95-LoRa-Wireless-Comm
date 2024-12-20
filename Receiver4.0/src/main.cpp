@@ -118,6 +118,7 @@ int timing = 0;
 int timing1 = 0;
 int timing2 = 0;
 int timing3 = 0;
+int timing4 = 0;
 
 void loop() {
   read1 = false;
@@ -139,7 +140,7 @@ void loop() {
             testRead();
           } else {
             packetRead();
-            Serial.println("\nbuf len: " + String(length) + "\n");
+            // Serial.println("\nbuf len: " + String(length) + "\n");
           }
           int temp = millis();
           //Serial.println("A milli A milli A milli 1: " + String(temp - timing));
@@ -156,11 +157,11 @@ void loop() {
             testRead();
           } else {
             packetRead();
-            Serial.println("\nbuf len: " + String(length) + "\n");
+            // Serial.println("\nbuf len: " + String(length) + "\n");
           }
           int temp = millis();
-          //Serial.println("A milli A milli A milli 2: " + String(temp - timing));
-          timing1 = temp;
+          //Serial.println("A milli A milli A milli 2: " + String(temp - timing2));
+          timing2 = temp;
         }
       } break;
     }
@@ -173,11 +174,11 @@ void loop() {
             testRead();
           } else {
             packetRead();
-            Serial.println("\nbuf len: " + String(length) + "\n");
+            // Serial.println("\nbuf len: " + String(length) + "\n");
           }
           int temp = millis();
-          //Serial.println("A milli A milli A milli 3: " + String(temp - timing));
-          timing2 = temp;
+          //Serial.println("A milli A milli A milli 3: " + String(temp - timing3));
+          timing3 = temp;
         }
       } break;
     } 
@@ -192,8 +193,8 @@ void loop() {
             packetRead();
           }
           int temp = millis();
-          //Serial.println("A milli A milli A milli 4: " + String(temp - timing));
-          timing3 = temp;
+          //Serial.println("A milli A milli A milli 4: " + String(temp - timing4));
+          timing4 = temp;
         }
       } break;
     }

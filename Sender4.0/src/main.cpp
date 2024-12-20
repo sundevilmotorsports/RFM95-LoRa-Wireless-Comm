@@ -1,8 +1,6 @@
 #include <Arduino.h>
 #include <RH_RF95.h>
 #include <FlexCAN_T4.h>
-#include <SPI.h>
-#include <iostream>
 #include <chrono>
 #include <map>
 #include <vector>
@@ -26,7 +24,7 @@ using namespace std;
 #define TESTING_CAN false
 #define TESTING_RADIOS false
 
-#define MODEM_CONFIG RH_RF95::ModemConfigChoice::Bw125Cr48Sf4096
+#define MODEM_CONFIG RH_RF95::ModemConfigChoice::Bw500Cr45Sf128
 
 std::map<RH_RF95::ModemConfigChoice, std::pair<float, int>> config = {
 	{RH_RF95::ModemConfigChoice::Bw500Cr45Sf128,  {0.37,8}},    //short & fast,     0.37x + 5 ms
@@ -201,9 +199,9 @@ void setup() {
     driver1.setFrequency(915.0); // Median of Hz range
     driver1.setTxPower(RH_RF95_MAX_POWER, false); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
     driver1.setModemConfig(MODEM_CONFIG); //Bandwidth of 125, Cognitive Radio 4/5, Spreading Factor 2048
-     driver1.setSpreadingFactor(9);
-     driver1.setSignalBandwidth(500000);
-     driver1.setCodingRate4(5);
+    // driver1.setSpreadingFactor(9);
+    // driver1.setSignalBandwidth(500000);
+    // driver1.setCodingRate4(5);
     num_radios++;
   }
 
@@ -215,9 +213,9 @@ void setup() {
     driver2.setFrequency(915.0);
     driver2.setTxPower(RH_RF95_MAX_POWER, false);
     driver2.setModemConfig(MODEM_CONFIG);
-    driver2.setSpreadingFactor(8);
-    driver2.setSignalBandwidth(125000);
-    driver2.setCodingRate4(5);
+    // driver2.setSpreadingFactor(8);
+    // driver2.setSignalBandwidth(125000);
+    // driver2.setCodingRate4(5);
     num_radios++;
   }
 
@@ -229,9 +227,9 @@ void setup() {
     driver3.setFrequency(915.0);
     driver3.setTxPower(RH_RF95_MAX_POWER, false);
     driver3.setModemConfig(MODEM_CONFIG);
-    driver3.setSpreadingFactor(8);
-    driver3.setSignalBandwidth(125000);
-    driver3.setCodingRate4(5);
+    // driver3.setSpreadingFactor(8);
+    // driver3.setSignalBandwidth(125000);
+    // driver3.setCodingRate4(5);
     num_radios++;
   }
 
@@ -243,9 +241,9 @@ void setup() {
     driver4.setFrequency(915.0);
     driver4.setTxPower(RH_RF95_MAX_POWER, false);
     driver4.setModemConfig(MODEM_CONFIG);
-    driver4.setSpreadingFactor(8);
-    driver4.setSignalBandwidth(125000);
-    driver4.setCodingRate4(5);
+    // driver4.setSpreadingFactor(8);
+    // driver4.setSignalBandwidth(125000);
+    // driver4.setCodingRate4(5);
     num_radios++;
   }
 
@@ -272,7 +270,7 @@ void setup() {
   Can.begin();
   Can.setBaudRate(1000000); // Our CAN loop's Baud rate
   Can.enableMBInterrupts(); // CAN mailboxes are interrupt-driven, meaning it does stuff when a message appears
-  //Can.onReceive(canSniff); // Calls can sniff when it recives a can message
+  Can.onReceive(canSniff); // Calls can sniff when it recives a can message
 }
 
 //The can messages are sent as a CAN messgae struct saved into msg, for us the important parts of the struct is
@@ -629,7 +627,7 @@ void testPacket(){
 
 //Counter that increments every loop, radio % 4 is what radio is chosen that loop and when radio is less than number of radios that initializes it sleeps the teensy for that delay 
 int radio = 0;
-
+int timing = 0;
 void loop() {  
   bool sent_pkt1 = false;
   bool sent_pkt2 = false;
@@ -640,9 +638,9 @@ void loop() {
     testPacket();
   }
 
-  if(radio % 100000 == 0){
-    //Serial.println("anti-hang tech " + String(radio));
-  }
+  // if(radio % 100000 == 0){
+  //   Serial.println("anti-hang tech " + String(radio));
+  // }
 
   switch (mode){
     case 1:{
@@ -664,22 +662,18 @@ void loop() {
   }
   if(TESTING_CAN){
     switch (mode){
-      case 1:{
+      case 1:
         suspension.print_packet();
         break;
-      }
-      case 2:{
+      case 2:
         damper.print_packet();
         break;
-      }
-      case 3:{
+      case 3:
         drive.print_packet();
         break;
-      }
-      case 4:{
+      case 4:
         slide.print_packet();
         break;
-      }
     }
   }
 
@@ -709,6 +703,9 @@ void loop() {
       }
       if (Serial){
         Serial.println("Sent radio 1: " + String(sent_pkt1) + "\tmode: " + String(mode));
+        int temp = millis();
+        //Serial.println("\tA milli A milli A milli 1: " + String(temp - timing));
+        timing = temp;
       }
       break;
 
@@ -736,6 +733,9 @@ void loop() {
       }
       if (Serial){
         Serial.println("Sent radio 2: " + String(sent_pkt2) + "\tmode: " + String(mode));
+        int temp = millis();
+        //Serial.println("\tA milli A milli A milli 2: " + String(temp - timing));
+        timing = temp;
       }
       break;
     case 2:
@@ -761,6 +761,9 @@ void loop() {
       }
       if (Serial){
         Serial.println("Sent radio 3: " + String(sent_pkt3) + "\tmode: " + String(mode));
+        int temp = millis();
+        //Serial.println("\tA milli A milli A milli 3: " + String(temp - timing));
+        timing = temp;
       }
       break;
     case 3:
@@ -785,6 +788,9 @@ void loop() {
       }
       if (Serial){
         Serial.println("Sent radio 4: " + String(sent_pkt4) + "\tmode: " + String(mode));
+        int temp = millis();
+        //Serial.println("\tA milli A milli A milli 4: " + String(temp - timing));
+        timing = temp;
       }
       break;
   }
