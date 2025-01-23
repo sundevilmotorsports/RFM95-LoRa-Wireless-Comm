@@ -65,9 +65,9 @@ void setup(){
     driver1.setFrequency(915.0); // Median of Hz range
     driver1.setTxPower(RH_RF95_MAX_POWER, false); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
     driver1.setModemConfig(MODEM_CONFIG); //Bandwidth of 125, Cognitive Radio 4/5, Spreading Factor 2048
-    // driver1.setSpreadingFactor(8);
-    // driver1.setSignalBandwidth(500000);
-    // driver1.setCodingRate4(5);
+    //  driver1.setSpreadingFactor(8);
+    //  driver1.setSignalBandwidth(500000);
+    //  driver1.setCodingRate4(6);
     driver1.setModeRx();
   }
   
@@ -81,7 +81,7 @@ void setup(){
     driver2.setModemConfig(MODEM_CONFIG);
     // driver2.setSpreadingFactor(8);
     // driver2.setSignalBandwidth(500000);
-    // driver2.setCodingRate4(5);
+    // driver2.setCodingRate4(6);
     driver2.setModeRx();
   }
 
@@ -95,7 +95,7 @@ void setup(){
     driver3.setModemConfig(MODEM_CONFIG);
     // driver3.setSpreadingFactor(8);
     // driver3.setSignalBandwidth(500000);
-    // driver3.setCodingRate4(5);
+    // driver3.setCodingRate4(6);
     driver3.setModeRx();
   }
 
@@ -109,7 +109,7 @@ void setup(){
     driver4.setModemConfig(MODEM_CONFIG);
     // driver4.setSpreadingFactor(8);
     // driver4.setSignalBandwidth(500000);
-    // driver4.setCodingRate4(5);
+    // driver4.setCodingRate4(6);
     driver4.setModeRx();
   }  
 }
@@ -130,80 +130,95 @@ void loop() {
 
   switch (receiver_inc) {
     case 0: {
-      //Serial.println("reciver 0 " + String(driver1.available()));
-      //if(driver1.available() && radio1){
-      if(radio1){
+      if(radio1) {
         read1 = driver1.recv(pkt, &length);
-        if(read1){
-          if (testing){
-            Serial.print("Driver1: ");
-            testRead();
+        if (read1) {
+          if(pkt[1] == 0 && pkt[2] == 0 && pkt[3] == 0 && pkt[4] == 0){
+            Serial.println("Eveded zero 1");
           } else {
-            packetRead();
-            // Serial.println("\nbuf len: " + String(length) + "\n");
+            if (testing){
+              Serial.print("Driver1: ");
+              testRead();
+            } else {
+              packetRead();
+              // Serial.println("\nbuf len: " + String(length) + "\n");
+            }
+            int temp = millis();
+            //Serial.println("A milli A milli A milli 3: " + String(temp - timing3));
+            timing1 = temp;
           }
-          int temp = millis();
-          //Serial.println("A milli A milli A milli 1: " + String(temp - timing));
-          timing = temp;
         }
-      } break; 
-    }
+      } break;
+    } 
     case 1: {
       if(radio2) {
         read2 = driver2.recv(pkt, &length);
-        if (read2){
-          if (testing){
-            Serial.print("Driver2: ");
-            testRead();
+        if (read2) {
+          if(pkt[1] == 0 && pkt[2] == 0 && pkt[3] == 0 && pkt[4] == 0){
+            Serial.println("Evaded zero 2");
           } else {
-            packetRead();
-            // Serial.println("\nbuf len: " + String(length) + "\n");
+            if (testing){
+              Serial.print("Driver2: ");
+              testRead();
+            } else {
+              packetRead();
+              // Serial.println("\nbuf len: " + String(length) + "\n");
+            }
+            int temp = millis();
+            //Serial.println("A milli A milli A milli 2: " + String(temp - timing3));
+            timing2 = temp;
           }
-          int temp = millis();
-          //Serial.println("A milli A milli A milli 2: " + String(temp - timing2));
-          timing2 = temp;
         }
       } break;
-    }
+    } 
     case 2: {
       if(radio3) {
         read3 = driver3.recv(pkt, &length);
         if (read3) {
-          if (testing){
-            Serial.print("Driver3: ");
-            testRead();
+          if(pkt[1] == 0 && pkt[2] == 0 && pkt[3] == 0 && pkt[4] == 0){
+            Serial.println("evaded zero 3");
           } else {
-            packetRead();
-            // Serial.println("\nbuf len: " + String(length) + "\n");
+            if (testing){
+              Serial.print("Driver3: ");
+              testRead();
+            } else {
+              packetRead();
+              // Serial.println("\nbuf len: " + String(length) + "\n");
+            }
+            int temp = millis();
+            //Serial.println("A milli A milli A milli 3: " + String(temp - timing3));
+            timing3 = temp;
           }
-          int temp = millis();
-          //Serial.println("A milli A milli A milli 3: " + String(temp - timing3));
-          timing3 = temp;
-        }
+        } 
       } break;
     } 
     case 3: {
-      if(radio4){
+      if(radio4) {
         read4 = driver4.recv(pkt, &length);
         if (read4) {
-          if (testing) {
-            Serial.print("Driver4: ");
-            testRead();
+          if(pkt[1] == 0 && pkt[2] == 0 && pkt[3] == 0 && pkt[4] == 0){
+            Serial.println("evaded zero 4");
           } else {
-            packetRead();
+            if (testing){
+              Serial.print("Driver4: ");
+              testRead();
+            } else {
+              packetRead();
+              // Serial.println("\nbuf len: " + String(length) + "\n");
+            }
+            int temp = millis();
+            //Serial.println("A milli A milli A milli 4: " + String(temp - timing4));
+            timing4 = temp;
           }
-          int temp = millis();
-          //Serial.println("A milli A milli A milli 4: " + String(temp - timing4));
-          timing4 = temp;
         }
       } break;
-    }
+    } 
   }
   if (testing){
-    Serial.println("radio 1 init: " + String(radio1) + "\tradio 1 recive: " + String(read1));
-    Serial.println("radio 2 init: " + String(radio2) + "\tradio 2 recive: " + String(read2));
-    Serial.println("radio 3 init: " + String(radio3) + "\tradio 3 recive: " + String(read3));
-    Serial.println("radio 4 init: " + String(radio4) + "\tradio 4 recive: " + String(read4));
+    //Serial.println("radio 1 init: " + String(radio1) + "\tradio 1 recive: " + String(read1));
+    //Serial.println("radio 2 init: " + String(radio2) + "\tradio 2 recive: " + String(read2));
+    //Serial.println("radio 3 init: " + String(radio3) + "\tradio 3 recive: " + String(read3));
+    //Serial.println("radio 4 init: " + String(radio4) + "\tradio 4 recive: " + String(read4));
   }
   receiver_inc = (receiver_inc+1) % 4;
 }
@@ -216,51 +231,52 @@ void packetRead() {
   
   switch (mode) {
     case 0: {// General
-      unsigned long timestamp = (unsigned long) pkt[0] << 24 | (unsigned long) pkt[1] << 16 | (unsigned long) pkt[2] << 8 | (unsigned long) pkt[3];
-      float xAccel = (pkt[4] << 24) | (pkt[5] << 16) | (pkt[6] << 8) | pkt[7]; 
-      float yAccel = (pkt[8] << 24) | (pkt[9] << 16) | (pkt[10] << 8) | pkt[11];
-      float zAccel = (pkt[12] << 24) | (pkt[13] << 16) | (pkt[14] << 8) | pkt[15];
+      pkt[0] = 0;
+      unsigned long timestamp = (unsigned long) pkt[1] << 24 | (unsigned long) pkt[2] << 16 | (unsigned long) pkt[3] << 8 | (unsigned long) pkt[4];
+      float xAccel = (pkt[5] << 24) | (pkt[6] << 16) | (pkt[7] << 8) | pkt[8]; 
+      float yAccel = (pkt[9] << 24) | (pkt[10] << 16) | (pkt[11] << 8) | pkt[12];
+      float zAccel = (pkt[13] << 24) | (pkt[14] << 16) | (pkt[15] << 8) | pkt[16];
 
-      float xGyro = (pkt[16] << 24) | (pkt[17] << 16) | (pkt[18] << 8) | pkt[19];
-      float yGyro = (pkt[20] << 24) | (pkt[21] << 16) | (pkt[22] << 8) | pkt[23];
-      float zGyro = (pkt[24] << 24) | (pkt[25] << 16) | (pkt[26] << 8) | pkt[27];
+      float xGyro = (pkt[17] << 24) | (pkt[18] << 16) | (pkt[19] << 8) | pkt[20];
+      float yGyro = (pkt[21] << 24) | (pkt[22] << 16) | (pkt[23] << 8) | pkt[24];
+      float zGyro = (pkt[25] << 24) | (pkt[26] << 16) | (pkt[27] << 8) | pkt[28];
 
-      float fl_speed = (pkt[28] << 8) | pkt[29];
-      float fl_brakeTemp = (pkt[30] << 8) | pkt[31];
-      float fl_ambTemp = (pkt[32] << 8) | pkt[33];
+      float fl_speed = (pkt[29] << 8) | pkt[30];
+      float fl_brakeTemp = (pkt[31] << 8) | pkt[32];
+      float fl_ambTemp = (pkt[33] << 8) | pkt[34];
 
-      float fr_speed = (pkt[34] << 8) | pkt[35];
-      float fr_brakeTemp = (pkt[36] << 8) | pkt[37];
-      float fr_ambTemp = (pkt[38] << 8) | pkt[39];
+      float fr_speed = (pkt[35] << 8) | pkt[36];
+      float fr_brakeTemp = (pkt[37] << 8) | pkt[38];
+      float fr_ambTemp = (pkt[39] << 8) | pkt[40];
 
-      float bl_speed = (pkt[40] << 8) | pkt[41];
-      float bl_brakeTemp = (pkt[42] << 8) | pkt[43];
-      float bl_ambTemp = (pkt[44] << 8) | pkt[45];
+      float bl_speed = (pkt[41] << 8) | pkt[42];
+      float bl_brakeTemp = (pkt[43] << 8) | pkt[44];
+      float bl_ambTemp = (pkt[45] << 8) | pkt[46];
 
-      float br_speed = (pkt[46] << 8) | pkt[47];
-      float br_brakeTemp = (pkt[48] << 8) | pkt[49];
-      float br_ambTemp = (pkt[50] << 8) | pkt[51];
+      float br_speed = (pkt[47] << 8) | pkt[48];
+      float br_brakeTemp = (pkt[49] << 8) | pkt[50];
+      float br_ambTemp = (pkt[51] << 8) | pkt[52];
 
-      float differentialSpeed = (pkt[52] << 8 | pkt[53]);
+      float differentialSpeed = (pkt[53] << 8) | pkt[54];
 
-      uint8_t drsToggle = pkt[54];
-      float steeringAngle = (pkt[55] << 8) | pkt[56];
-      float throttleInput = (pkt[57] << 8) | pkt[58];
+      uint8_t drsToggle = pkt[55];
+      float steeringAngle = (pkt[56] << 8) | pkt[57];
+      float throttleInput = (pkt[58] << 8) | pkt[59];
 
-      float frontBrakePressure = (pkt[59] << 8) | pkt[60];
-      float rearBrakePressure = (pkt[61] << 8) | pkt[62];
+      float frontBrakePressure = (pkt[60] << 8) | pkt[61];
+      float rearBrakePressure = (pkt[62] << 8) | pkt[63];
 
-      float gpsLatitude = ((pkt[63] << 24) | (pkt[64] << 16) | (pkt[65] << 8) | pkt[66])/10000000;
-      float gpsLongitude = ((pkt[67]<< 24) | (pkt[68] << 16) | (pkt[69] << 8) | pkt[70])/10000000;
-      
-      float batteryVoltage = (pkt[71] << 24) | (pkt[72] << 16) | (pkt[73] << 8) | pkt[74];
-      float daqCurrentDraw = (pkt[75] << 24) | (pkt[76] << 16) | (pkt[77] << 8) | pkt[78];
+      float gpsLatitude = ((pkt[64] << 24) | (pkt[65] << 16) | (pkt[66] << 8) | pkt[67]) / 10000000;
+      float gpsLongitude = ((pkt[68] << 24) | (pkt[69] << 16) | (pkt[70] << 8) | pkt[71]) / 10000000;
 
-      float fl_shock = (pkt[79] << 8) | pkt[80];
-      float fr_shock = (pkt[81] << 8) | pkt[82];
-      float bl_shock = (pkt[83] << 8) | pkt[84];
-      float br_shock = (pkt[85] << 8) | pkt[86];
-      
+      float batteryVoltage = (pkt[72] << 24) | (pkt[73] << 16) | (pkt[74] << 8) | pkt[75];
+      float daqCurrentDraw = (pkt[76] << 24) | (pkt[77] << 16) | (pkt[78] << 8) | pkt[79];
+
+      float fl_shock = (pkt[80] << 8) | pkt[81];
+      float fr_shock = (pkt[82] << 8) | pkt[83];
+      float bl_shock = (pkt[84] << 8) | pkt[85];
+      float br_shock = (pkt[86] << 8) | pkt[87];
+
       if (testing) {
         Serial.println("[General]");
       }
