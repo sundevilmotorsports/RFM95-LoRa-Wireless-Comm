@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <RH_RF95.h>
 #include <SPI.h>
+#include <TimeLib.h>
 
 using namespace std;
 
@@ -21,8 +22,6 @@ using namespace std;
 #define testing false
 
 #define MODEM_CONFIG RH_RF95::ModemConfigChoice::Bw500Cr45Sf128
-
-int mode = 0; // 0 for general, 1 for suspension, 2 for damper, 3 for driver, 4 for slip/slide
 
 bool radio1 = false;
 bool radio2 = false;
@@ -52,7 +51,12 @@ unsigned long BAUD = 9600;
 
 int receiver_inc = 0;
 
+time_t getTeensy3Time() {
+  return Teensy3Clock.get();
+}
+
 void setup(){
+  setSyncProvider(getTeensy3Time);
   Serial.begin(BAUD);
 
   while(!Serial);
@@ -64,10 +68,10 @@ void setup(){
     Serial.println("init 1 succeded");
     driver1.setFrequency(915.0); // Median of Hz range
     driver1.setTxPower(RH_RF95_MAX_POWER, false); //Max power, should increase range, but try to find min because a little rude to be blasting to everyone
-    driver1.setModemConfig(MODEM_CONFIG); //Bandwidth of 125, Cognitive Radio 4/5, Spreading Factor 2048
-    //  driver1.setSpreadingFactor(8);
-    //  driver1.setSignalBandwidth(500000);
-    //  driver1.setCodingRate4(6);
+    // driver1.setModemConfig(MODEM_CONFIG); //Bandwidth of 125, Cognitive Radio 4/5, Spreading Factor 2048
+    driver1.setSpreadingFactor(7);
+    driver1.setSignalBandwidth(500000);
+    driver1.setCodingRate4(6);
     driver1.setModeRx();
   }
   
@@ -78,10 +82,10 @@ void setup(){
     Serial.println("init 2 succeded");
     driver2.setFrequency(915.0);
     driver2.setTxPower(RH_RF95_MAX_POWER, false);
-    driver2.setModemConfig(MODEM_CONFIG);
-    // driver2.setSpreadingFactor(8);
-    // driver2.setSignalBandwidth(500000);
-    // driver2.setCodingRate4(6);
+    // driver2.setModemConfig(MODEM_CONFIG);
+    driver2.setSpreadingFactor(7);
+    driver2.setSignalBandwidth(500000);
+    driver2.setCodingRate4(6);
     driver2.setModeRx();
   }
 
@@ -92,10 +96,10 @@ void setup(){
     Serial.println("init 3 succeded");
     driver3.setFrequency(915.0);
     driver3.setTxPower(RH_RF95_MAX_POWER, false);
-    driver3.setModemConfig(MODEM_CONFIG);
-    // driver3.setSpreadingFactor(8);
-    // driver3.setSignalBandwidth(500000);
-    // driver3.setCodingRate4(6);
+    // driver3.setModemConfig(MODEM_CONFIG);
+    driver3.setSpreadingFactor(7);
+    driver3.setSignalBandwidth(500000);
+    driver3.setCodingRate4(6);
     driver3.setModeRx();
   }
 
@@ -106,10 +110,10 @@ void setup(){
     Serial.println("init 4 succeded");
     driver4.setFrequency(915.0);
     driver4.setTxPower(RH_RF95_MAX_POWER, false);
-    driver4.setModemConfig(MODEM_CONFIG);
-    // driver4.setSpreadingFactor(8);
-    // driver4.setSignalBandwidth(500000);
-    // driver4.setCodingRate4(6);
+    // driver4.setModemConfig(MODEM_CONFIG);
+    driver4.setSpreadingFactor(7);
+    driver4.setSignalBandwidth(500000);
+    driver4.setCodingRate4(6);
     driver4.setModeRx();
   }  
 }
@@ -134,7 +138,7 @@ void loop() {
         read1 = driver1.recv(pkt, &length);
         if (read1) {
           if(pkt[1] == 0 && pkt[2] == 0 && pkt[3] == 0 && pkt[4] == 0){
-            Serial.println("Eveded zero 1");
+            //Serial.println("Evaded zero 1");
           } else {
             if (testing){
               Serial.print("Driver1: ");
@@ -155,7 +159,7 @@ void loop() {
         read2 = driver2.recv(pkt, &length);
         if (read2) {
           if(pkt[1] == 0 && pkt[2] == 0 && pkt[3] == 0 && pkt[4] == 0){
-            Serial.println("Evaded zero 2");
+            //Serial.println("Evaded zero 2");
           } else {
             if (testing){
               Serial.print("Driver2: ");
@@ -176,7 +180,7 @@ void loop() {
         read3 = driver3.recv(pkt, &length);
         if (read3) {
           if(pkt[1] == 0 && pkt[2] == 0 && pkt[3] == 0 && pkt[4] == 0){
-            Serial.println("evaded zero 3");
+            //Serial.println("evaded zero 3");
           } else {
             if (testing){
               Serial.print("Driver3: ");
@@ -197,7 +201,7 @@ void loop() {
         read4 = driver4.recv(pkt, &length);
         if (read4) {
           if(pkt[1] == 0 && pkt[2] == 0 && pkt[3] == 0 && pkt[4] == 0){
-            Serial.println("evaded zero 4");
+            //Serial.println("evaded zero 4");
           } else {
             if (testing){
               Serial.print("Driver4: ");
@@ -229,9 +233,8 @@ void packetRead() {
   // IMU pkt 4-28, 
   // Wheel Boards 29-6
   
-  switch (mode) {
+  switch (pkt[0]) {
     case 0: {// General
-      pkt[0] = 0;
       unsigned long timestamp = (unsigned long) pkt[1] << 24 | (unsigned long) pkt[2] << 16 | (unsigned long) pkt[3] << 8 | (unsigned long) pkt[4];
       float xAccel = (pkt[5] << 24) | (pkt[6] << 16) | (pkt[7] << 8) | pkt[8]; 
       float yAccel = (pkt[9] << 24) | (pkt[10] << 16) | (pkt[11] << 8) | pkt[12];
@@ -293,151 +296,30 @@ void packetRead() {
         String(batteryVoltage)     + "," + String(daqCurrentDraw) + "," + String(fl_shock) + "," + String(fr_shock) + "," + String(bl_shock) + "," + String(br_shock) + "\n");
       break;
     }
-    case 1: {// Suspension
-      // IMU DATA
-      for (int offset = 0; offset < 64; offset+=63) {
-        unsigned long timestamp = (unsigned long) pkt[0 + offset] << 24 | (unsigned long) pkt[1 + offset] << 16 | (unsigned long) pkt[2 + offset] << 8 | (unsigned long) pkt[3 + offset];
-        float xAccel = (pkt[4 + offset] << 24) | (pkt[5 + offset] << 16) | (pkt[6 + offset] << 8) | pkt[7 + offset]; 
-        float yAccel = (pkt[8 + offset] << 24) | (pkt[9 + offset] << 16) | (pkt[10 + offset] << 8) | pkt[11 + offset];
-        float zAccel = (pkt[12 + offset] << 24) | (pkt[13 + offset] << 16) | (pkt[14 + offset] << 8) | pkt[15 + offset];
+    case 1: {// Lap Timing
+      uint8_t gateNum = pkt[1];
 
-        float xGyro = (pkt[16 + offset] << 24) | (pkt[17 + offset] << 16) | (pkt[18 + offset] << 8) | pkt[19 + offset];
-        float yGyro = (pkt[20 + offset] << 24) | (pkt[21 + offset] << 16) | (pkt[22 + offset] << 8) | pkt[23 + offset];
-        float zGyro = (pkt[24 + offset] << 24) | (pkt[25 + offset] << 16) | (pkt[26 + offset] << 8) | pkt[27 + offset];
+      uint8_t starting_second = pkt[2];
+      uint8_t starting_minute = pkt[3];
+      uint8_t starting_hour = pkt[4];
+      uint8_t starting_day = pkt[5];
+      uint8_t starting_month = pkt[6];
+      uint8_t starting_year = pkt [7];
 
-        // WHEEL BOARD DATA
-        float fl_speed = (pkt[28 + offset] << 8) | pkt[29 + offset];
-        float fr_speed = (pkt[30 + offset] << 8) | pkt[31 + offset];
-        float bl_speed = (pkt[32 + offset] << 8) | pkt[33 + offset];
-        float br_speed = (pkt[34 + offset] << 8) | pkt[35 + offset];
+      int start_millis = ((pkt[8] << 24) | (pkt[9] << 16) | (pkt[10] << 8) | pkt[11]);
+      int now_millis = ((pkt[12] << 24) | (pkt[13] << 16) | (pkt[14] << 8) | pkt[15]);
 
-        float differentialSpeed = (pkt[36 + offset] << 8 | pkt[37 + offset]);
-
-        uint8_t drsToggle = pkt[38 + offset];
-        float steeringAngle = (pkt[39 + offset] << 8) | pkt[40 + offset];
-        float throttleInput = (pkt[41 + offset] << 8) | pkt[42 + offset];
-
-        float frontBrakePressure =(pkt[43 + offset] << 8) | pkt[44 + offset];
-        float rearBrakePressure = (pkt[45 + offset] << 8) | pkt[46 + offset];
-
-        float gpsLatitude = ((pkt[47 + offset] << 24) | (pkt[48 + offset] << 16) | (pkt[49 + offset] << 8) | pkt[50 + offset])/10000000;
-        float gpsLongitude =((pkt[51 + offset] << 24) | (pkt[52 + offset] << 16) | (pkt[53 + offset] << 8) | pkt[54 + offset])/10000000;
-
-        float fl_shock = (pkt[55 + offset] << 8) | pkt[56 + offset];
-        float fr_shock = (pkt[57 + offset] << 8) | pkt[58 + offset];
-        float bl_shock = (pkt[59 + offset] << 8) | pkt[60 + offset];
-        float br_shock = (pkt[61 + offset] << 8) | pkt[62 + offset];
-
-        if (testing) {
-          Serial.println("[Suspension]");
-        }
-
-        Serial.print("1," + String(timestamp) + ","  + String(xAccel) + "," + String(yAccel) + "," + String(zAccel) + "," + 
-          String(xGyro)  + "," + String(yGyro)  + "," + String(zGyro) + ","); 
-        Serial.print(String(fl_speed) + "," + String(fr_speed) + "," + String(bl_speed) + "," + String(br_speed) + "," + String(differentialSpeed) +  ",");
-        Serial.print(String(drsToggle) + "," + String(steeringAngle) + "," + String(throttleInput) + "," + 
-          String(frontBrakePressure) + "," + String(rearBrakePressure) + "," + 
-          String(gpsLatitude) + "," + String(gpsLongitude) + "," + String(fl_shock) + "," + String(fr_shock) + "," + String(bl_shock) + "," + String(br_shock) + "\n");
-      }
-      break;
-    }
-    case 2: {// Damper
-      for (int offset = 0; offset < 209; offset+=26) {
-        //Serial.println(offset);
-        unsigned long timestamp = (unsigned long) pkt[0 + offset] << 24 | (unsigned long) pkt[1 + offset] << 16 | (unsigned long) pkt[2 + offset] << 8 | (unsigned long) pkt[3 + offset];
-        float xAccel = (pkt[4 + offset] << 24) | (pkt[5 + offset] << 16) | (pkt[6 + offset] << 8) | pkt[7 + offset]; 
-        float yAccel = (pkt[8 + offset] << 24) | (pkt[9 + offset] << 16) | (pkt[10 + offset] << 8) | pkt[11 + offset];
-        float zAccel = (pkt[12 + offset] << 24) | (pkt[13 + offset] << 16) | (pkt[14 + offset] << 8) | pkt[15 + offset];
-
-        float fl_speed = (pkt[16 + offset] << 8) | pkt[17 + offset];
-
-        float fl_shock = (pkt[18 + offset] << 8) | pkt[19 + offset];
-        float fr_shock = (pkt[20 + offset] << 8) | pkt[21 + offset];
-        float bl_shock = (pkt[22 + offset] << 8) | pkt[23 + offset];
-        float br_shock = (pkt[24 + offset] << 8) | pkt[25 + offset];
-
-        if (testing) {
-          Serial.println("[Damper]");
-        }
-
-        Serial.print("2," + String(timestamp) + ","  + String(xAccel) + "," + String(yAccel) + "," + String(zAccel) + ","); 
-        Serial.print(String(fl_speed) + "," + String(fl_shock) + "," + String(fr_shock) + "," + String(bl_shock) + "," + String(br_shock) + "\n");
-      }
-      break;
-    }
-    case 3: {// Driver
-      for (int offset = 0; offset < 74; offset+=37) {
-        //Serial.println("DRIVER");
-        unsigned long timestamp = (unsigned long) pkt[0 + offset] << 24 | (unsigned long) pkt[1 + offset] << 16 | (unsigned long) pkt[2 + offset] << 8 | (unsigned long) pkt[3 + offset];
-        float xAccel = (pkt[4 + offset] << 24) | (pkt[5 + offset] << 16) | (pkt[6 + offset] << 8) | pkt[7 + offset]; 
-        float yAccel = (pkt[8 + offset] << 24) | (pkt[9 + offset] << 16) | (pkt[10 + offset] << 8) | pkt[11 + offset];
-
-        float fl_speed = (pkt[12 + offset] << 8) | pkt[13 + offset];
-        float bl_speed = (pkt[14 + offset] << 8) | pkt[15 + offset];
-        float br_speed = (pkt[16 + offset] << 8) | pkt[17 + offset];
-
-        float differentialSpeed = (pkt[18 + offset] << 8 | pkt[19 + offset]);
-
-        uint8_t drsToggle = pkt[20 + offset];
-        float steeringAngle = (pkt[21 + offset] << 8) | pkt[22 + offset];
-        float throttleInput = (pkt[23 + offset] << 8) | pkt[24 + offset];
-
-        float frontBrakePressure = (pkt[25 + offset] << 8) | pkt[26 + offset];
-        float rearBrakePressure = (pkt[27 + offset] << 8) | pkt[28 + offset];
-
-        float fl_shock = (pkt[29 + offset] << 8) | pkt[30 + offset];
-        float fr_shock = (pkt[31 + offset] << 8) | pkt[32 + offset];
-        float bl_shock = (pkt[33 + offset] << 8) | pkt[34 + offset];
-        float br_shock = (pkt[35 + offset] << 8) | pkt[36 + offset];
-
-        if (testing) {
-          Serial.println("[Driver]");
-        }
-
-        Serial.print("3," + String(timestamp) + ","  + String(xAccel) + "," + String(yAccel) + "," + String(fl_speed) + "," + String(bl_speed) + "," + String(br_speed) + ",");
-        Serial.print(String(differentialSpeed) + "," + (drsToggle) + "," + String(steeringAngle) + "," + String(throttleInput) + "," + 
-          String(frontBrakePressure) + "," + String(rearBrakePressure) + "," + String(fl_shock) + "," + String(fr_shock) + "," + String(bl_shock) + "," + String(br_shock) + "\n");
-      }
-      break;
-    }
-    case 4: {// Slip/Slide
-      for (int offset = 0; offset < 151; offset+=30) {
-        unsigned long timestamp = (unsigned long) pkt[0 + offset] << 24 | (unsigned long) pkt[1 + offset] << 16 | (unsigned long) pkt[2 + offset] << 8 | (unsigned long) pkt[3 + offset];
-        float xAccel = (pkt[4 + offset] << 24) | (pkt[5 + offset] << 16) | (pkt[6 + offset] << 8) | pkt[7 + offset]; 
-        float yAccel = (pkt[8 + offset] << 24) | (pkt[9 + offset] << 16) | (pkt[10 + offset] << 8) | pkt[11 + offset];
-
-        float fl_speed = (pkt[12 + offset] << 8) | pkt[13 + offset];
-        float fr_speed = (pkt[14 + offset] << 8) | pkt[15 + offset];
-        float bl_speed = (pkt[16 + offset] << 8) | pkt[17 + offset];
-        float br_speed = (pkt[18 + offset] << 8) | pkt[19 + offset];
-
-        float differentialSpeed = (pkt[20 + offset] << 8 | pkt[21 + offset]);
-
-        float steeringAngle = (pkt[22 + offset] << 8) | pkt[23 + offset];
-        float throttleInput = (pkt[24 + offset] << 8) | pkt[25 + offset];
-
-        float frontBrakePressure = (pkt[26 + offset] << 8) | pkt[27 + offset];
-        float rearBrakePressure = (pkt[28 + offset] << 8) | pkt[29 + offset];
-
-        if (testing) {
-          Serial.println("[SLIP/SLIDE]");
-        }
-
-        Serial.print("4," + String(timestamp) + ","  + String(xAccel) + "," + String(yAccel) + "," + String(fl_speed) + "," + String(fr_speed) + "," + String(bl_speed) + "," + 
-          String(br_speed) + "," + String(differentialSpeed) + "," + String(steeringAngle) + "," + String(throttleInput) + "," + 
-          String(frontBrakePressure) + "," + String(rearBrakePressure) + "\n");
-
-      }
+      Serial.println("1," + String(gateNum) + "," + String(starting_year) + "," + String(starting_month) + "," + String(starting_day) + "," + String(starting_hour) + "," + String(starting_minute) + "," + String(starting_second) + "," + String(start_millis) + "," + String(now_millis) + "," + String(now_millis-start_millis));
       break;
     }
     default: {
       Serial.println("Nothing Called");
       break;
-  }
+    }
   }
 }
 void testRead(){
-  for (int i = 0; i < sizeof(pkt); i++){
+  for (unsigned int i = 0; i < sizeof(pkt); i++){
     Serial.print(String(pkt[i]) + ", ");
   }
   Serial.println();
