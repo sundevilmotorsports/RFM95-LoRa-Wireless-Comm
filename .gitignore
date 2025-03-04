@@ -4,4 +4,5 @@
 .vscode/launch.json
 .vscode/ipch
 .vscode/
-.STM32F405Reciver/Release
+.Debug/
+.Release/
