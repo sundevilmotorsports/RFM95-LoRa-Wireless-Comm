@@ -143,101 +143,16 @@ void setup() {
   Can.onReceive(canSniff); // Calls can sniff when it recives a can message
 }
 
-//Counter that increments every loop, radio % 4 is what radio is chosen that loop and when radio is less than number of radios that initializes it sleeps the teensy for that delay 
+int ambiantTemp = 0;
+int tempOutput = 0;
+
 int radio = 0;
-int timing = 0;
-void loop() {  
-  bool sent_pkt1 = false;
-  bool sent_pkt2 = false;
-  bool sent_pkt3 = false;
-  bool sent_pkt4 = false;
-
-  // if(radio % 100000 == 0){
-  //   Serial.println("anti-hang tech " + String(radio));
-  // }
-
-  if(TESTING_CAN){
-    Serial.print("general: " + String(general[0]) + ", ");
-    for(int i = 1; i < sizeof(general); i++){
-      Serial.print(String(general[i]) + ", ");
-    }
-    Serial.println("");
-  }
-
-  
-  switch (radio % 4){
-    case  0:
-      if(!radio1){
-        //Serial.println("Driver 1 unresponsive");
-        break;
-      }
-      sent_pkt1 = driver1.send(general, sizeof(general));
-      if (Serial){
-        Serial.println("Sent radio 1: " + String(sent_pkt1) + "\tmode: " + String(mode));
-        int temp = millis();
-        //Serial.println("\tA milli A milli A milli 1: " + String(temp - timing));
-        timing = temp;
-      }
-      break;
-
-    case 1:
-      if(!radio2){
-        //Serial.println("Driver 2 unresponsive");
-        break;
-      }
-      sent_pkt2 = driver2.send(general, sizeof(general));
-      if (Serial){
-        Serial.println("Sent radio 2: " + String(sent_pkt2) + "\tmode: " + String(mode));
-        int temp = millis();
-        //Serial.println("\tA milli A milli A milli 2: " + String(temp - timing));
-        timing = temp;
-      }
-      break;
-    case 2:
-      if(!radio3){
-        //Serial.println("Driver 3 unresponsive");
-        break;
-      }
-      sent_pkt3 = driver3.send(general, sizeof(general));
-      if (Serial){
-        Serial.println("Sent radio 3: " + String(sent_pkt3) + "\tmode: " + String(mode));
-        int temp = millis();
-        //Serial.println("\tA milli A milli A milli 3: " + String(temp - timing));
-        timing = temp;
-      }
-      break;
-    case 3:
-      if(!radio4){
-        //Serial.println("Driver 4 unresponsive");
-        break;
-      }
-      sent_pkt4 = driver4.send(general, sizeof(general));
-      if (Serial){
-        Serial.println("Sent radio 4: " + String(sent_pkt4) + "\tmode: " + String(mode));
-        int temp = millis();
-        //Serial.println("\tA milli A milli A milli 4: " + String(temp - timing));
-        timing = temp;
-      }
-      break;
-  }
-  
-  if(radio < num_radios){
-    delay(_delay);
-  }
-  radio++;
-}
-
-//The can messages are sent as a CAN messgae struct saved into msg, for us the important parts of the struct is
-  // timestamp - the FlexCAN time when the message arrived - BETA: Was millis(), testing how it changes the response
-  // buf - uint8_t array that holds our data
-  // id - identifier that tells us what message we recived
-
 void canSniff(const CAN_message_t &msg)
 {
   //Serial.println("cansiff detect");
   //Grabing current millisecond, shifting right logicical to place the selected 8 bits into the 8 least significant bits,
   //then performing a logical and with 0xFF to mask all the more significant bits
-  //Serial.println("In can");
+  // Serial.println("In can");
   unsigned long currentMillis =  millis();
   general[0] = 0;
   general[1] = (currentMillis >> 24) & 0xFF;
@@ -410,11 +325,100 @@ void canSniff(const CAN_message_t &msg)
       general[78] = msg.buf[6];
       general[79] = msg.buf[7];
       break;
+    case 0x4E4: // TODO update ids
+      tempOutput = (msg.buf[0] << 8) | msg.buf[1];
+      ambiantTemp = (msg.buf[4] << 8) | msg.buf[5]; // attempting to read ambient temp
+      Serial.println("Output: " + String(tempOutput) + "\tTemp: " + String(ambiantTemp) + "\tepcoh: " + String(radio));
+      break;
     default:
-      Serial.print("default: " + String(msg.buf[0]) + ", ");
+      Serial.print("default\nID: " + String(msg.id) + "\nbuf:" + String(msg.buf[0]) + ", ");
       for(int i = 1; i < msg.len; i++){
         Serial.print(String(msg.buf[i]) + ", ");
       }
+      Serial.println();
     break;
   }
+}
+
+//Counter that increments every loop, radio % 4 is what radio is chosen that loop and when radio is less than number of radios that initializes it sleeps the teensy for that delay 
+int timing = 0;
+void loop() {  
+  bool sent_pkt1 = false;
+  bool sent_pkt2 = false;
+  bool sent_pkt3 = false;
+  bool sent_pkt4 = false;
+
+  // if(radio % 100000 == 0){
+  //   Serial.println("anti-hang tech " + String(radio));
+  // }
+
+  if(TESTING_CAN){
+    Serial.print("general: " + String(general[0]) + ", ");
+    for(int i = 1; i < sizeof(general); i++){
+      Serial.print(String(general[i]) + ", ");
+    }
+    Serial.println("");
+  }
+
+  
+  switch (radio % 4){
+    case  0:
+      if(!radio1){
+        //Serial.println("Driver 1 unresponsive");
+        break;
+      }
+      sent_pkt1 = driver1.send(general, sizeof(general));
+      if (Serial){
+        Serial.println("Sent radio 1: " + String(sent_pkt1));
+        int temp = millis();
+        //Serial.println("\tA milli A milli A milli 1: " + String(temp - timing));
+        timing = temp;
+      }
+      break;
+
+    case 1:
+      if(!radio2){
+        //Serial.println("Driver 2 unresponsive");
+        break;
+      }
+      sent_pkt2 = driver2.send(general, sizeof(general));
+      if (Serial){
+        //Serial.println("Sent radio 2: " + String(sent_pkt2) + "\tmode: " + String(mode));
+        int temp = millis();
+        //Serial.println("\tA milli A milli A milli 2: " + String(temp - timing));
+        timing = temp;
+      }
+      break;
+    case 2:
+      if(!radio3){
+        //Serial.println("Driver 3 unresponsive");
+        break;
+      }
+      sent_pkt3 = driver3.send(general, sizeof(general));
+      if (Serial){
+        Serial.println("Sent radio 3: " + String(sent_pkt3));
+        int temp = millis();
+        //Serial.println("\tA milli A milli A milli 3: " + String(temp - timing));
+        timing = temp;
+      }
+      break;
+    case 3:
+      if(!radio4){
+        //Serial.println("Driver 4 unresponsive");
+        break;
+      }
+      sent_pkt4 = driver4.send(general, sizeof(general));
+      if (Serial){
+        Serial.println("Sent radio 4: " + String(sent_pkt4));
+        int temp = millis();
+        //Serial.println("\tA milli A milli A milli 4: " + String(temp - timing));
+        timing = temp;
+      }
+      break;
+  }
+  
+  // if(radio < num_radios){
+  //   delay(_delay);
+  // }
+  radio++;
 }
