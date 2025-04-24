@@ -4,71 +4,15 @@
 #include <assert.h>
 #include <string.h>
 
-#define RFM9x_VER 0x12
-
-/**
- * Registers addresses.
- */
-typedef enum
+static const ModemConfig MODEM_CONFIG_TABLE[] =
 {
-	RFM95_REGISTER_FIFO_ACCESS = 0x00,
-	RFM95_REGISTER_OP_MODE = 0x01,
-	RFM95_REGISTER_FR_MSB = 0x06,
-	RFM95_REGISTER_FR_MID = 0x07,
-	RFM95_REGISTER_FR_LSB = 0x08,
-	RFM95_REGISTER_PA_CONFIG = 0x09,
-	RFM95_REGISTER_LNA = 0x0C,
-	RFM95_REGISTER_FIFO_ADDR_PTR = 0x0D,
-	RFM95_REGISTER_FIFO_TX_BASE_ADDR = 0x0E,
-	RFM95_REGISTER_FIFO_RX_BASE_ADDR = 0x0F,
-	RFM95_REGISTER_IRQ_FLAGS = 0x12,
-	RFM95_REGISTER_FIFO_RX_BYTES_NB = 0x13,
-	RFM95_REGISTER_PACKET_SNR = 0x19,
-	RFM95_REGISTER_MODEM_CONFIG_1 = 0x1D,
-	RFM95_REGISTER_MODEM_CONFIG_2 = 0x1E,
-	RFM95_REGISTER_SYMB_TIMEOUT_LSB = 0x1F,
-	RFM95_REGISTER_PREAMBLE_MSB = 0x20,
-	RFM95_REGISTER_PREAMBLE_LSB = 0x21,
-	RFM95_REGISTER_PAYLOAD_LENGTH = 0x22,
-	RFM95_REGISTER_MAX_PAYLOAD_LENGTH = 0x23,
-	RFM95_REGISTER_MODEM_CONFIG_3 = 0x26,
-	RFM95_REGISTER_INVERT_IQ_1 = 0x33,
-	RFM95_REGISTER_SYNC_WORD = 0x39,
-	RFM95_REGISTER_INVERT_IQ_2 = 0x3B,
-	RFM95_REGISTER_DIO_MAPPING_1 = 0x40,
-	RFM95_REGISTER_VERSION = 0x42,
-	RFM95_REGISTER_PA_DAC = 0x4D
-} rfm95_register_t;
-
-typedef struct
-{
-	union {
-		struct {
-			uint8_t output_power : 4;
-			uint8_t max_power : 3;
-			uint8_t pa_select : 1;
-		};
-		uint8_t buffer;
-	};
-} rfm95_register_pa_config_t;
-
-#define RFM95_REGISTER_OP_MODE_SLEEP                            0x00
-#define RFM95_REGISTER_OP_MODE_LORA_SLEEP                       0x80
-#define RFM95_REGISTER_OP_MODE_LORA_STANDBY                     0x81
-#define RFM95_REGISTER_OP_MODE_LORA_TX                          0x83
-#define RFM95_REGISTER_OP_MODE_LORA_RX_SINGLE                   0x86
-
-#define RFM95_REGISTER_PA_DAC_LOW_POWER                         0x84
-#define RFM95_REGISTER_PA_DAC_HIGH_POWER                        0x87
-
-#define RFM95_REGISTER_DIO_MAPPING_1_IRQ_FOR_TXDONE             0x40
-#define RFM95_REGISTER_DIO_MAPPING_1_IRQ_FOR_RXDONE             0x00
-
-#define RFM95_REGISTER_INVERT_IQ_1_TX                    		0x27
-#define RFM95_REGISTER_INVERT_IQ_2_TX							0x1d
-
-#define RFM95_REGISTER_INVERT_IQ_1_RX                    		0x67
-#define RFM95_REGISTER_INVERT_IQ_2_RX							0x19
+    //  1d,     1e,      26
+    { 0x72,   0x74,    0x04}, // Bw125Cr45Sf128 (the chip default), AGC enabled
+    { 0x92,   0x74,    0x04}, // Bw500Cr45Sf128, AGC enabled
+    { 0x48,   0x94,    0x04}, // Bw31_25Cr48Sf512, AGC enabled
+    { 0x78,   0xc4,    0x0c}, // Bw125Cr48Sf4096, AGC enabled
+    { 0x72,   0xb4,    0x04}, // Bw125Cr45Sf2048, AGC enabled
+};
 
 static bool read_register(rfm95_handle_t *handle, rfm95_register_t reg, uint8_t *buffer, size_t length)
 {
@@ -157,11 +101,11 @@ static void reset(rfm95_handle_t *handle)
 static bool configure_frequency(rfm95_handle_t *handle, uint32_t frequency)
 {
 	// FQ = (FRF * 32 Mhz) / (2 ^ 19)
-	uint64_t frf = ((uint64_t)frequency << 19) / 32000000;
+	uint64_t frf = ((uint64_t)frequency << 19) / RH_RF95_FXOSC;
 
-	if (!write_register(handle, RFM95_REGISTER_FR_MSB, (uint8_t)(frf >> 16))) return false;
-	if (!write_register(handle, RFM95_REGISTER_FR_MID, (uint8_t)(frf >> 8))) return false;
-	if (!write_register(handle, RFM95_REGISTER_FR_LSB, (uint8_t)(frf >> 0))) return false;
+	if (!write_register(handle, RH_RF95_REG_06_FRF_MSB, (uint8_t)(frf >> 16))) return false;
+	if (!write_register(handle, RH_RF95_REG_07_FRF_MID, (uint8_t)(frf >> 8))) return false;
+	if (!write_register(handle, RH_RF95_REG_08_FRF_LSB, (uint8_t)(frf >> 0))) return false;
 
 	return true;
 }
@@ -219,8 +163,8 @@ bool rfm95_set_power(rfm95_handle_t *handle, int8_t power)
 		pa_dac_config = RFM95_REGISTER_PA_DAC_HIGH_POWER;
 	}
 
-	if (!write_register(handle, RFM95_REGISTER_PA_CONFIG, pa_config.buffer)) return false;
-	if (!write_register(handle, RFM95_REGISTER_PA_DAC, pa_dac_config)) return false;
+	if (!write_register(handle, RFM95_REG_09_PA_CONFIG, pa_config.buffer)) return false;
+	if (!write_register(handle, RFM95_REG_4D_PA_DAC, pa_dac_config)) return false;
 
 	return true;
 }
@@ -244,14 +188,14 @@ bool rfm95_init(rfm95_handle_t *handle)
 	reset(handle);
 
 	// If there is reload function or the reload was unsuccessful or the magic does not match restore default.
-	if (handle->reload_config == NULL || !handle->reload_config(&handle->config) ||
-	    handle->config.magic != RFM95_EEPROM_CONFIG_MAGIC) {
-		config_load_default(handle);
-	}
+//	if (handle->reload_config == NULL || !handle->reload_config(&handle->config) ||
+//	    handle->config.magic != RFM95_EEPROM_CONFIG_MAGIC) {
+//		config_load_default(handle);
+//	}
 
 	// Check for correct version.
 	uint8_t version;
-	if (!read_register(handle, RFM95_REGISTER_VERSION, &version, 1)) 
+	if (!read_register(handle, RFM95_REG_42_VERSION, &version, 1))
 	{
 		return false;
 	}
@@ -262,12 +206,12 @@ bool rfm95_init(rfm95_handle_t *handle)
 	} 
 
 	// Module must be placed in sleep mode before switching to lora.
-	if (!write_register(handle, RFM95_REGISTER_OP_MODE, RFM95_REGISTER_OP_MODE_SLEEP)) return false;
-	if (!write_register(handle, RFM95_REGISTER_OP_MODE, RFM95_REGISTER_OP_MODE_LORA_SLEEP)) return false;
+	if (!write_register(handle, RFM95_REG_01_OP_MODE, RFM95_REGISTER_OP_MODE_SLEEP)) return false;
+	if (!write_register(handle, RFM95_REG_01_OP_MODE, RFM95_REGISTER_OP_MODE_LORA_SLEEP)) return false;
 
 	// Default interrupt configuration, must be done to prevent DIO5 clock interrupts at 1Mhz
 	// Set DIO0 to either RXDONE or TXDONE (Datasheet Table 17)
-	if (!write_register(handle, RFM95_REGISTER_DIO_MAPPING_1, RFM95_REGISTER_DIO_MAPPING_1_IRQ_FOR_RXDONE)) return false;
+	if (!write_register(handle, RFM95_REGISTER_DIO_MAPPING_1_IRQ_FOR_TXDONE, RFM95_REGISTER_DIO_MAPPING_1_IRQ_FOR_RXDONE)) return false;
 
 	// Whatever :|
 	if (handle->on_after_interrupts_configured != NULL) {
@@ -278,26 +222,244 @@ bool rfm95_init(rfm95_handle_t *handle)
 	if (!rfm95_set_power(handle, 17)) return false;
 
 	// Set LNA to the highest gain with 150% boost.
-	if (!write_register(handle, RFM95_REGISTER_LNA, 0x23)) return false;
+	if (!write_register(handle, RFM95_REG_0C_LNA, 0x23)) return false;
 
 	// Preamble set to 8 + 4.25 = 12.25 symbols.
-	if (!write_register(handle, RFM95_REGISTER_PREAMBLE_MSB, 0x00)) return false;
-	if (!write_register(handle, RFM95_REGISTER_PREAMBLE_LSB, 0x08)) return false;
+	if (!write_register(handle, RFM95_REG_20_PREAMBLE_MSB, 0x00)) return false;
+	if (!write_register(handle, RFM95_REG_21_PREAMBLE_LSB, 0x08)) return false;
 
 	// Set TTN sync word 0x34.
-	if (!write_register(handle, RFM95_REGISTER_SYNC_WORD, 0x34)) return false;
+	if (!write_register(handle, RFM95_REG_39_SYNC_WORD, 0x34)) return false;
 
 	// Set up TX and RX FIFO base addresses.
-	if (!write_register(handle, RFM95_REGISTER_FIFO_TX_BASE_ADDR, 0x80)) return false;
-	if (!write_register(handle, RFM95_REGISTER_FIFO_RX_BASE_ADDR, 0x00)) return false;
+	if (!write_register(handle, RFM95_REG_0E_FIFO_TX_BASE_ADDR, 0x80)) return false;
+	if (!write_register(handle, RFM95_REG_0F_FIFO_RX_BASE_ADDR, 0x00)) return false;
 
 	// Maximum payload length of the RFM95 is 64.
-	if (!write_register(handle, RFM95_REGISTER_MAX_PAYLOAD_LENGTH, 64)) return false;
+	if (!write_register(handle, RFM95_REG_23_MAX_PAYLOAD_LENGTH, RFM95_MAX_PAYLOAD_LEN)) return false;
 
 	// Let module sleep after initialisation.
-	if (!write_register(handle, RFM95_REGISTER_OP_MODE, RFM95_REGISTER_OP_MODE_LORA_SLEEP)) return false;
+	if (!write_register(handle, RFM95_REG_01_OP_MODE, RFM95_REGISTER_OP_MODE_LORA_SLEEP)) return false;
 
 	return true;
+}
+
+bool rfm95_available(rfm95_handle_t *handle) {
+    uint8_t irq;
+    if (!read_register(handle, RFM95_REG_12_IRQ_FLAGS, &irq, 1))
+        return false;
+    // bit 6 = RXDONE
+    return (irq & 0x40) != 0;
+}
+
+bool rfm95_recv(rfm95_handle_t *handle, uint8_t* buf, uint8_t* len)
+{
+    if (!rfm95_available(handle)) // check availability
+        return false;
+
+    uint8_t irq;
+	if (!read_register(handle, RFM95_REGISTER_IRQ_FLAGS, &irq, 1)) return false;
+	if (!(irq & RFM95_RX_DONE_MASK)) return false;
+
+	if (irq & RFM95_PAYLOAD_CRC_ERROR_MASK) {
+		// CRC error detected
+		write_register(handle, RFM95_REGISTER_IRQ_FLAGS, RFM95_PAYLOAD_CRC_ERROR_MASK);
+		return false;
+	}
+	write_register(handle, RFM95_REGISTER_IRQ_FLAGS, RFM95_RX_DONE_MASK);
+
+    write_register(handle, RFM95_REGISTER_OP_MODE, RFM95_REGISTER_OP_MODE_LORA_STANDBY); //standby mode
+
+    // this makes it so the next received packet goes to fill FIFO
+    write_register(handle, RFM95_REGISTER_IRQ_FLAGS, 0xFF);
+
+    uint8_t rawLen;
+	if (!read_register(handle, RFM95_REGISTER_FIFO_RX_BYTES_NB, &rawLen, 1)) return false; //get number of raw bytes in FIFO
+
+	uint8_t payloadLen = (rawLen > RFM95_HEADER_LEN) ? rawLen - RFM95_HEADER_LEN : 0;
+
+    if (*len > payloadLen) {
+        *len = payloadLen;
+    } else {
+        payloadLen = *len;
+    }
+
+    uint8_t rxAddr;
+    read_register(handle, RFM95_REG_10_FIFO_RX_CURRENT_ADDR, &rxAddr, 1);
+    write_register(handle, RFM95_REG_0D_FIFO_ADDR_PTR, rxAddr);
+
+    for (int i = 0; i < RFM95_HEADER_LEN; i++) {
+        uint8_t dummy;
+        read_register(handle, RH_RF95_REG_00_FIFO, &dummy, 1);
+    }
+    // read packet from FIFO
+    for (int i = 0; i < payloadLen; i++) {
+        read_register(handle, RH_RF95_REG_00_FIFO, buf + i, 1);
+    }
+
+    write_register(handle, RFM95_REGISTER_OP_MODE, RFM95_REGISTER_OP_MODE_LORA_RX_SINGLE);
+
+    return true;
+}
+
+bool rfm95_send(rfm95_handle_t *handle, const uint8_t* data, uint8_t* len)
+{
+    if (*len > RFM95_MAX_MESSAGE_LEN) return false;
+
+    uint8_t irq;
+    do {
+        if (!read_register(handle, RFM95_REGISTER_IRQ_FLAGS, &irq, 1)) return false;
+    } while (!(irq & RFM95_TX_DONE_MASK));
+
+    write_register(handle, RFM95_REGISTER_IRQ_FLAGS, RFM95_TX_DONE_MASK);
+
+    write_register(handle, RFM95_REGISTER_OP_MODE, RFM95_REGISTER_OP_MODE_LORA_STANDBY);
+
+    uint8_t txAddr;
+    read_register(handle, RFM95_REGISTER_FIFO_TX_BASE_ADDR, txAddr);
+    write_register(handle, RFM95_REGISTER_FIFO_ADDR_PTR, txAddr);
+    write_register(handle, RFM95_REG_22_PAYLOAD_LENGTH, *len + RFM95_HEADER_LEN);
+
+    // IMPLEMENT WHAT TO WRITE TO HEADER
+    write_register(handle, RH_RF95_REG_00_FIFO, 0xff);
+    write_register(handle, RH_RF95_REG_00_FIFO, 0xff);
+    write_register(handle, RH_RF95_REG_00_FIFO, 0xff);
+    write_register(handle, RH_RF95_REG_00_FIFO, 0xff);
+
+    for (int i = 0; i < *len; i++) {
+        write_register(handle, RH_RF95_REG_00_FIFO, data[i]);
+    }
+
+    write_register(handle, RFM95_REGISTER_OP_MODE, RFM95_REGISTER_OP_MODE_LORA_TX);
+
+    return true;
+}
+
+bool rfm95_set_spreading_factor(rfm95_handle_t *handle, uint8_t sf) {
+	if (sf < 6 || sf > 12) return false;
+
+	if (sf <= 6)
+	 sf = RFM95_SPREADING_FACTOR_64CPS;
+   else if (sf == 7)
+	 sf = RFM95_SPREADING_FACTOR_128CPS;
+   else if (sf == 8)
+	 sf = RFM95_SPREADING_FACTOR_256CPS;
+   else if (sf == 9)
+	 sf = RFM95_SPREADING_FACTOR_512CPS;
+   else if (sf == 10)
+	 sf = RFM95_SPREADING_FACTOR_1024CPS;
+   else if (sf == 11)
+	 sf = RFM95_SPREADING_FACTOR_2048CPS;
+   else if (sf >= 12)
+	 sf =  RFM95_SPREADING_FACTOR_4096CPS;
+
+   // set the new spreading factor
+	//   spiWrite(RH_RF95_REG_1E_MODEM_CONFIG2, (spiRead(RH_RF95_REG_1E_MODEM_CONFIG2) & ~RH_RF95_SPREADING_FACTOR) | sf);
+   uint8_t current_sf;
+   read_register(handle, RFM95_REG_1E_MODEM_CONFIG2, current_sf, 1);
+   write_register(handle, RFM95_REG_1E_MODEM_CONFIG2, (current_sf & ~RFM95_SPREADING_FACTOR) | sf);
+   // check if Low data Rate bit should be set or cleared
+   rfm95_set_low_data_rate(handle, TRUE);
+}
+
+void rfm95_set_signal_bandwidth(rfm95_handle_t *handle, long sbw)
+{
+    uint8_t bw; //register bit pattern
+
+    if (sbw <= 7800)
+	bw = RFM95_BW_7_8KHZ;
+    else if (sbw <= 10400)
+	bw =  RFM95_BW_10_4KHZ;
+    else if (sbw <= 15600)
+	bw = RFM95_BW_15_6KHZ ;
+    else if (sbw <= 20800)
+	bw = RFM95_BW_20_8KHZ;
+    else if (sbw <= 31250)
+	bw = RFM95_BW_31_25KHZ;
+    else if (sbw <= 41700)
+	bw = RFM95_BW_41_7KHZ;
+    else if (sbw <= 62500)
+	bw = RFM95_BW_62_5KHZ;
+    else if (sbw <= 125000)
+	bw = RFM95_BW_125KHZ;
+    else if (sbw <= 250000)
+	bw = RFM95_BW_250KHZ;
+    else
+	bw =  RFM95_BW_500KHZ;
+
+    // top 4 bits of reg 1D control bandwidth
+//    spiWrite(RH_RF95_REG_1D_MODEM_CONFIG1, (spiRead(RH_RF95_REG_1D_MODEM_CONFIG1) & ~RH_RF95_BW) | bw);
+    uint8_t current_bw;
+    read_register(handle, RFM95_REG_1D_MODEM_CONFIG1, current_bw, 1);
+    write_register(handle, RFM95_REG_1D_MODEM_CONFIG1, (current_bw & ~RFM95_BW) | sbw);
+    // check if low data rate bit should be set or cleared
+    rfm95_set_low_data_rate(handle, TRUE);
+}
+
+
+
+
+bool rfm95_set_low_data_rate(rfm95_handle_t *handle, bool enable)
+{
+    uint8_t bw;
+    read_register(handle, RFM95_REG_1D_MODEM_CONFIG1, bw, 1);
+    bw = bw >> 4;
+    uint8_t sf;
+    read_register(handle, RFM95_REG_1E_MODEM_CONFIG2, sf, 1);
+    sf = sf >> 4;
+
+    float bw_tab[] = {7800, 10400, 15600, 20800, 31250, 41700, 62500, 125000, 250000, 500000};
+
+	float bandwidth = bw_tab[BW];
+
+	float symbolTime = 1000.0 * pow(2, SF) / bandwidth;	// ms
+
+	// the symbolTime for SF 11 BW 125 is 16.384ms.
+	// and, according to this :-
+	// https://www.thethingsnetwork.org/forum/t/a-point-to-note-lora-low-data-rate-optimisation-flag/12007
+	// the LDR bit should be set if the Symbol Time is > 16ms
+	// So the threshold used here is 16.0ms
+
+	// the LDR is bit 3 of RH_RF95_REG_26_MODEM_CONFIG3
+	uint8_t agc;
+	read_register(handle, RFM95_REG_26_MODEM_CONFIG3, agc, 1);
+
+	uint8_t current = agc & ~RFM95_LOW_DATA_RATE_OPTIMIZE; // mask off the LDR bit
+	if (symbolTime > 16.0)
+		write_register(handle, RFM95_REG_26_MODEM_CONFIG, current | RFM95_LOW_DATA_RATE_OPTIMIZE);
+	else
+		write_register(handle, RFM95_REG_26_MODEM_CONFIG, current | RFM95_LOW_DATA_RATE_OPTIMIZE);
+}
+
+void rfm95_set_payload_crc(bool on) {
+    // Payload CRC is bit 2 of register 1E
+	uint8_t current;
+	read_register(handle, RFM95_REG_1E_MODEM_CONFIG2, current, 1);
+	current = current & ~RFM95_PAYLOAD_CRC_ON; // mask off the CRC
+
+
+    if (on)
+    	write_register(handle, RFM95_REG_1E_MODEM_CONFIG2, current | RFM95_PAYLOAD_CRC_ON);
+    else
+    	write_register(handle, RFM95_REG_1E_MODEM_CONFIG2, current);\
+    handle->crc_enable = on;
+}
+
+static bool setModemRegisters(rfm95_handle_t *handle, uint8_t reg1d, uint8_t reg1e, uint8_t reg26) {
+    if (!write_register(handle, RFM95_REGISTER_MODEM_CONFIG_1, reg1d)) return false;
+    if (!write_register(handle, RFM95_REGISTER_MODEM_CONFIG_2, reg1e)) return false;
+    if (!write_register(handle, RFM95_REGISTER_MODEM_CONFIG_3, reg26)) return false;
+    return true;
+}
+
+bool rfm95_set_modem_config_choice(rfm95_handle_t *handle, ModemConfigChoice choice)
+{
+    // Bounds‐check the choice against the table size
+    if ((size_t)choice >= sizeof(MODEM_CONFIG_TABLE)/sizeof(MODEM_CONFIG_TABLE[0])) {
+        return false;
+    }
+    const ModemConfig *m = &MODEM_CONFIG_TABLE[choice];
+    return setModemRegisters(handle, m->reg_1d, m->reg_1e, m->reg_26);
 }
 
 static bool process_mac_commands(rfm95_handle_t *handle, const uint8_t *frame_payload,
@@ -448,7 +610,8 @@ static bool receive_at_scheduled_time(rfm95_handle_t *handle, uint32_t scheduled
 	if (!write_register(handle, RFM95_REGISTER_IRQ_FLAGS, 0xff)) return false;
 	handle->interrupt_times[RFM95_INTERRUPT_DIO0] = 0;
 	handle->interrupt_times[RFM95_INTERRUPT_DIO1] = 0;
-	handle->interrupt_times[RFM95_INTERRUPT_DIO5] = 0;
+	handle->interrupt_times[RFM95_INTERRUPT_DIO2] = 0;
+	handle->interrupt_times[RFM95_INTERRUPT_DIO3] = 0;
 
 	// Move modem to lora standby.
 	if (!write_register(handle, RFM95_REGISTER_OP_MODE, RFM95_REGISTER_OP_MODE_LORA_STANDBY)) return false;
