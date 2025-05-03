@@ -16,7 +16,7 @@
 
 
 /* Defines -------------------------------------------------------------------*/
-#define RFM95_INTERRUPT_COUNT 	3
+//#define RFM95_INTERRUPT_COUNT 	3
 /* Defines END ---------------------------------------------------------------*/
 
 
@@ -43,9 +43,7 @@ typedef struct {
 
 
 /* Global Functions ----------------------------------------------------------*/
-void RFM95_Init( SPI_HandleTypeDef *spi_handle, GPIO_TypeDef *nss_port, uint16_t nss_pin );
-bool read_register( rfm95_handle_t *handle, uint8_t register, uint8_t *buffer, size_t length );
-bool write_register( rfm95_handle_t* handle, uint8_t reg, uint8_t value );
+uint8_t RFM95_Init( SPI_HandleTypeDef *spi_handle, GPIO_TypeDef *nss_port, uint16_t nss_pin );
 /* Global Functions END ------------------------------------------------------*/
 
 

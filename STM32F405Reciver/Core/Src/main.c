@@ -147,7 +147,8 @@ int main(void)
     /* USER CODE BEGIN 3 */
     if( __HAL_TIM_GET_COUNTER( &htim3 ) - timer_val >= 5000 )
 	{
-		HAL_GPIO_TogglePin( GPIOB, GPIO_PIN_6 );
+		// Non-blocking LED toggle every 500ms
+    	HAL_GPIO_TogglePin( GPIOB, GPIO_PIN_6 );
 		timer_val = __HAL_TIM_GET_COUNTER( &htim3 );
 		CONSOLE_Printf( "LED toggle\r\n" );
 	}
