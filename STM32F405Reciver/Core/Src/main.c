@@ -25,6 +25,7 @@
 #include <stdint.h>
 
 #include "console.h"
+#include "rfm95.h"
 
 /* USER CODE END Includes */
 
@@ -35,6 +36,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+/*
 #define CS0 10
 #define G00 21
 
@@ -52,6 +54,7 @@
 #define TESTING_CAN false
 
 #define MODEM_CONFIG RH_RF95::ModemConfigChoice::Bw500Cr45Sf128
+*/
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -69,7 +72,7 @@ SPI_HandleTypeDef hspi1;
 TIM_HandleTypeDef htim3;
 
 /* USER CODE BEGIN PV */
-uint8_t general[87]; //packet to send
+//uint8_t general[87]; //packet to send
 
 /* USER CODE END PV */
 
@@ -125,6 +128,10 @@ int main(void)
   MX_TIM3_Init();
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
+
+  // Initialize RFM95 chip
+  RFM95_Init( &hspi1, GPIOA, GPIO_PIN_4 );
+
   // Start Timer3
   HAL_TIM_Base_Start( &htim3 );
   timer_val = __HAL_TIM_GET_COUNTER( &htim3 );
@@ -133,7 +140,7 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
+  while ( 1 )
   {
     /* USER CODE END WHILE */
 
