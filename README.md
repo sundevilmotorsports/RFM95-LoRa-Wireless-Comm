@@ -67,7 +67,7 @@ GND ----> (LoRa 0) GND ----> (LoRa 1) GND ----> (LoRa 2) GND ----> (LoRa 3) GND
 
 12 ----> (LoRa 0) MISO ----> (LoRa 1) MISO ----> (LoRa 2) MISO ----> (LoRa 3) MISO
 
-CAN ----> 5v !!!Only connect when powering through USB, not the car!!!
+CAN ----> 5v
 
 CAN ----> GND
 
@@ -76,8 +76,6 @@ CAN HIGH ----> 23
 CAN LOW ----> 22
 
 ### Protoboard Pins (Sender)
-
-#### Note: While the pin is marked 5v, our CAN network supplies 3.3v so it wont be opperating at 5v
 
 Teensy ----> LoRa 0 ----> LoRa 1 ----> LoRa 2 ----> LoRa 3
 
