@@ -24,8 +24,8 @@
 #define RFM95_REG_PA_CONFIG				0x09
 #define RFM95_REG_LNA					0x0C
 #define RFM95_REG_FIFO_ADDR_PTR			0x0D
-#define RFM95_REG_FIFO_TX_BASE		0x0E
-#define RFM95_REG_FIFO_RX_BASE		0x0F
+#define RFM95_REG_FIFO_TX_BASE			0x0E
+#define RFM95_REG_FIFO_RX_BASE			0x0F
 #define RFM95_REG_IRQ_FLAGS0			0x12
 #define RFM95_REG_FIFO_RX_BYTES_NB		0x13
 #define RFM95_REG_PACKET_SNR			0x19
@@ -222,6 +222,20 @@ uint8_t RFM95_Init( SPI_HandleTypeDef *spi_handle, GPIO_TypeDef *nss_port, uint1
 	if ( !write_register( &rfm95_handle1, RFM95_REG_FIFO_RX_BASE, RFM95_REG_FIFO_RX_ADDR ) )
 	{
 		CONSOLE_Printf( "RFM95_Init(): Intialization failed %d\r\n", RFM95_REG_FIFO_RX_BASE );
+		return FALSE;
+	}
+
+	// Set max payload length to 64
+	if ( !write_register( &rfm95_handle1, RFM95_REG_MAX_PAYLOAD_LENGTH, 64 ) )
+	{
+		CONSOLE_Printf( "RFM95_Init(): Intialization failed %d\r\n", RFM95_REG_MAX_PAYLOAD_LENGTH );
+		return FALSE;
+	}
+
+	// Let module sleep after initialization
+	if ( !write_register( &rfm95_handle1, RFM95_REG_OP_MODE, RFM95_REG_OP_MODE_LORA_SLEEP ) )
+	{
+		CONSOLE_Printf( "RFM95_Init(): Intialization failed 2 %d, %d\r\n", RFM95_REG_OP_MODE, RFM95_REG_OP_MODE_LORA_SLEEP );
 		return FALSE;
 	}
 

@@ -36,6 +36,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define		LED_TIMER_LIM		0xFFFF
 /*
 #define CS0 10
 #define G00 21
@@ -101,6 +102,7 @@ int main(void)
 
   /* USER CODE BEGIN 1 */
   uint16_t timer_val;
+  uint16_t timer_diff;
 
   /* USER CODE END 1 */
 
@@ -130,7 +132,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   // Initialize RFM95 chip
-  RFM95_Init( &hspi1, GPIOA, GPIO_PIN_4 );
+  //RFM95_Init( &hspi1, GPIOA, GPIO_PIN_4 );
 
   // Start Timer3
   HAL_TIM_Base_Start( &htim3 );
@@ -145,7 +147,9 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    if( __HAL_TIM_GET_COUNTER( &htim3 ) - timer_val >= 5000 )
+	timer_diff = ( ( __HAL_TIM_GET_COUNTER( &htim3 ) - timer_val ) + LED_TIMER_LIM ) % LED_TIMER_LIM;
+
+    if( timer_diff >= 5000 )
 	{
 		// Non-blocking LED toggle every 500ms
     	HAL_GPIO_TogglePin( GPIOB, GPIO_PIN_6 );
@@ -179,10 +183,10 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 15;
-  RCC_OscInitStruct.PLL.PLLN = 144;
+  RCC_OscInitStruct.PLL.PLLM = 6;
+  RCC_OscInitStruct.PLL.PLLN = 168;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLQ = 5;
+  RCC_OscInitStruct.PLL.PLLQ = 7;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
