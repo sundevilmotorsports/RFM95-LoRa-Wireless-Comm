@@ -36,26 +36,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define		LED_TIMER_LIM		0xFFFF
-/*
-#define CS0 10
-#define G00 21
-
-#define CS1 9
-#define G01 20
-
-#define CS2 7
-#define G02 19
-
-#define CS3 6
-#define G03 18
-
-#define SCK 13
-
-#define TESTING_CAN false
-
-#define MODEM_CONFIG RH_RF95::ModemConfigChoice::Bw500Cr45Sf128
-*/
+#define 	LED_TOGGLE_DT		5000
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -74,7 +55,6 @@ TIM_HandleTypeDef htim3;
 
 /* USER CODE BEGIN PV */
 //uint8_t general[87]; //packet to send
-
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -103,7 +83,6 @@ int main(void)
   /* USER CODE BEGIN 1 */
   uint16_t timer_val;
   uint16_t timer_diff;
-
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -132,7 +111,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   // Initialize RFM95 chip
-  //RFM95_Init( &hspi1, GPIOA, GPIO_PIN_4 );
+  RFM95_Init( &hspi1, GPIOA, GPIO_PIN_4 );
 
   // Start Timer3
   HAL_TIM_Base_Start( &htim3 );
@@ -147,14 +126,16 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	timer_diff = ( ( __HAL_TIM_GET_COUNTER( &htim3 ) - timer_val ) + LED_TIMER_LIM ) % LED_TIMER_LIM;
 
-    if( timer_diff >= 5000 )
+	// Non-blocking LED toggle every 500ms
+	timer_diff = ( ( __HAL_TIM_GET_COUNTER( &htim3 ) - timer_val ) + TIMER3_LIMIT ) % TIMER3_LIMIT;
+
+    if( timer_diff >= LED_TOGGLE_DT )
 	{
-		// Non-blocking LED toggle every 500ms
     	HAL_GPIO_TogglePin( GPIOB, GPIO_PIN_6 );
 		timer_val = __HAL_TIM_GET_COUNTER( &htim3 );
-		CONSOLE_Printf( "LED toggle\r\n" );
+		RFM95_ReadVersion();
+		//CONSOLE_Printf( "LED toggle\r\n" );
 	}
   }
   /* USER CODE END 3 */
@@ -416,12 +397,22 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
-
+void HAL_GPIO_EXTI_Callback( uint16_t GPIO_Pin )
+{
+    if ( GPIO_Pin == RFM95_DIO0_PIN )
+    {
+    	RFM95_InterruptCallbackG0();
+    }
+}
 /* USER CODE END 4 */
 
 /**

@@ -17,6 +17,7 @@
 
 /* Defines -------------------------------------------------------------------*/
 //#define RFM95_INTERRUPT_COUNT 	3
+#define RFM95_DIO0_PIN		GPIO_PIN_10
 /* Defines END ---------------------------------------------------------------*/
 
 
@@ -26,6 +27,7 @@ typedef struct {
 	SPI_HandleTypeDef *spi_handle; 				// The handle to the SPI bus for the device
 	GPIO_TypeDef *nss_port;						// The port of the NSS pin
 	uint16_t nss_pin;							// The NSS pin
+	uint8_t tx_status;
 	//uint8_t device_address[ 4 ];					// The device address for the LoraWAN
 	//uint8_t network_session_key[ 16 ];			// The network session key for ABP activation with the LoraWAN
 	//uint8_t application_session_key[ 16 ];		// The application session key for ABP activation with the LoraWAN
@@ -44,6 +46,8 @@ typedef struct {
 
 /* Global Functions ----------------------------------------------------------*/
 uint8_t RFM95_Init( SPI_HandleTypeDef *spi_handle, GPIO_TypeDef *nss_port, uint16_t nss_pin );
+void RFM95_InterruptCallbackG0( void );
+void RFM95_ReadVersion( void );
 /* Global Functions END ------------------------------------------------------*/
 
 
